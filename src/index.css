@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #08090d;
+    color: #f1f5f9;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    overscroll-behavior: none;
+  }
+}
+
+/* Tactical Glassmorphism */
+.glass-panel {
+  background: rgba(14, 17, 24, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-card {
+  background: rgba(22, 26, 36, 0.75);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.25s ease;
+}
+.glass-card:hover {
+  border-color: rgba(255, 107, 44, 0.45);
+  background: rgba(30, 35, 48, 0.9);
+}
+
+/* Warm Tactical Orange Accents */
+.accent-orange-glow {
+  box-shadow: 0 0 20px rgba(255, 107, 44, 0.5);
+}
+
+.gradient-orange-btn {
+  background: linear-gradient(135deg, #ff6b2c 0%, #ff4b1f 100%);
+  box-shadow: 0 4px 18px rgba(255, 75, 31, 0.4);
+}
+.gradient-orange-btn:hover {
+  box-shadow: 0 6px 26px rgba(255, 107, 44, 0.65);
+}
+
+/* Custom Tactical Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 12, 16, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ff6b2c;
+}
+
+/* Leaflet Customizations */
+.leaflet-container {
+  background-color: #08090d !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  outline: none;
+}
+
+.leaflet-top.leaflet-left .leaflet-control-zoom {
+  display: none !important;
+}
+
+.leaflet-top.leaflet-right .leaflet-control-zoom {
+  border: 1px solid rgba(255, 107, 44, 0.3) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6) !important;
+  margin-top: 14px !important;
+  margin-right: 14px !important;
+}
+.leaflet-top.leaflet-right .leaflet-control-zoom a {
+  background-color: rgba(18, 21, 30, 0.95) !important;
+  color: #ff6b2c !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 15px !important;
+  transition: all 0.2s ease !important;
+}
+.leaflet-top.leaflet-right .leaflet-control-zoom a:hover {
+  background-color: #ff6b2c !important;
+  color: #ffffff !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(14, 17, 24, 0.96) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 107, 44, 0.4) !important;
+  color: #ffffff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.85) !important;
+}
+.leaflet-popup-tip {
+  background: #0e1118 !important;
+}
+
+/* Realistic Spinning Rotor Animation */
+@keyframes spin-rotor {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-rotor {
+  animation: spin-rotor 0.2s linear infinite;
+}
