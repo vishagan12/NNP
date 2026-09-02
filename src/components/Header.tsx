@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, ShieldAlert, Cpu, Activity, Signal, Layers, Wifi, Shield, Mountain } from 'lucide-react';
+import { Radio, Cpu, Wifi, Shield, AlertTriangle, Layers } from 'lucide-react';
 
 interface HeaderProps {
   missionId: string;
@@ -15,133 +15,167 @@ interface HeaderProps {
   onToggleMode: (mode: 'MOCK_SIMULATION' | 'LIVE_HARDWARE') => void;
 }
 
+interface MetricPillProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  color: string;
+  borderColor: string;
+  bg: string;
+}
+
+const MetricPill: React.FC<MetricPillProps> = ({ icon, label, value, color, borderColor, bg }) => (
+  <div
+    className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+    style={{ background: bg, border: `1px solid ${borderColor}` }}
+  >
+    <div style={{ color }}>{icon}</div>
+    <div className="font-mono leading-none">
+      <div className="text-[7.5px] text-slate-600 uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-[10.5px] font-bold whitespace-nowrap" style={{ color }}>{value}</div>
+    </div>
+  </div>
+);
+
 export const Header: React.FC<HeaderProps> = ({
-  missionId,
   activeDronesCount,
   activeHexapodsCount = 6,
-  interiorDronesCount = 6,
-  perimeterDronesCount = 4,
-  totalAreaSqKm,
   searchedPercentage,
   meshHealthScore,
-  geofenceIntegrityScore = 99.2,
+  geofenceIntegrityScore = 99.4,
   missionMode,
   onToggleMode
 }) => {
   return (
-    <header className="fixed top-0 w-full z-50 bg-[#0c0f16]/95 backdrop-blur-2xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.8)]">
-      <div className="h-16 w-full px-5 flex items-center justify-between">
-        {/* NNP Brand Accent */}
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#ff4b1f] to-[#ff6b2c] flex items-center justify-center shadow-[0_0_20px_rgba(255,107,44,0.5)] border border-orange-400/40 text-white font-black text-lg">
-            ⚡
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-extrabold tracking-widest uppercase bg-gradient-to-r from-white via-slate-100 to-orange-400 bg-clip-text text-transparent">
+    <header
+      className="fixed top-0 w-full z-50"
+      style={{
+        height: '58px',
+        background: 'rgba(4,6,12,0.97)',
+        backdropFilter: 'blur(32px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: '0 1px 0 rgba(255,107,44,0.1), 0 4px 30px rgba(0,0,0,0.9)',
+      }}
+    >
+      <div className="h-full w-full px-4 flex items-center gap-3">
+
+        {/* ── LOGO ── */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
+            style={{
+              background: 'linear-gradient(135deg, #ff4b1f 0%, #ff6b2c 100%)',
+              boxShadow: '0 0 20px rgba(255,107,44,0.55), inset 0 1px 0 rgba(255,255,255,0.2)',
+            }}
+          >⚡</div>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-extrabold tracking-[0.14em] uppercase leading-none text-white">
                 NNP
               </span>
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#ff6b2c]/20 text-[#ff6b2c] border border-[#ff6b2c]/40 font-mono font-bold">
-                SEISMIC USAR GCS v5.0
+              <span
+                className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)' }}
+              >
+                <AlertTriangle size={8} className="animate-pulse" />
+                USAR
               </span>
             </div>
-            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
-              Air-Ground Swarm • Hexapod Geofencing • Disaster Response
+            <span className="text-[8px] font-mono text-slate-600 tracking-widest uppercase leading-none">
+              Air-Ground GCS · EQ M7.2
             </span>
           </div>
         </div>
 
-        {/* Tactical Metric Strip */}
-        <div className="hidden lg:flex items-center gap-5 bg-[#141722]/90 px-5 py-2 rounded-xl border border-white/10 shadow-inner">
-          <div className="flex items-center gap-2.5">
-            <Radio className="w-4 h-4 text-[#ff6b2c] animate-pulse" />
-            <div className="flex flex-col">
-              <span className="text-[9px] font-mono text-slate-400 uppercase">MISSION OPERATION</span>
-              <span className="text-xs font-mono font-bold text-white tracking-wider">SEISMIC SHIELD</span>
-            </div>
-          </div>
+        {/* ── Divider ── */}
+        <div className="w-px h-7 shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
 
-          <div className="w-[1px] h-7 bg-white/10"></div>
-
-          <div className="flex items-center gap-2.5">
-            <Cpu className="w-4 h-4 text-[#ff6b2c]" />
-            <div className="flex flex-col">
-              <span className="text-[9px] font-mono text-slate-400 uppercase">AIR-GROUND FLEET</span>
-              <span className="text-xs font-mono font-bold text-white">
-                {activeDronesCount} UAVs + {activeHexapodsCount} Hexa
-              </span>
-            </div>
-          </div>
-
-          <div className="w-[1px] h-7 bg-white/10"></div>
-
-          <div className="flex items-center gap-2.5">
-            <Shield className="w-4 h-4 text-cyan-400" />
-            <div className="flex flex-col">
-              <span className="text-[9px] font-mono text-slate-400 uppercase">GEOFENCE LOCK</span>
-              <span className="text-xs font-mono font-bold text-cyan-300">
-                {geofenceIntegrityScore}% (6 Anchors)
-              </span>
-            </div>
-          </div>
-
-          <div className="w-[1px] h-7 bg-white/10"></div>
-
-          <div className="flex items-center gap-2.5">
-            <Layers className="w-4 h-4 text-amber-400" />
-            <div className="flex flex-col">
-              <span className="text-[9px] font-mono text-slate-400 uppercase">SEARCH COVERAGE</span>
-              <span className="text-xs font-mono font-bold text-white">{searchedPercentage}%</span>
-            </div>
-          </div>
-
-          <div className="w-[1px] h-7 bg-white/10"></div>
-
-          <div className="flex items-center gap-2.5">
-            <Wifi className="w-4 h-4 text-emerald-400" />
-            <div className="flex flex-col">
-              <span className="text-[9px] font-mono text-slate-400 uppercase">868MHz MESH LINK</span>
-              <span className="text-xs font-mono font-bold text-emerald-400">{meshHealthScore}%</span>
-            </div>
-          </div>
+        {/* ── METRIC PILLS ── */}
+        <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-none min-w-0">
+          <MetricPill
+            icon={<Radio size={12} className="animate-pulse" />}
+            label="Active Hazard"
+            value="EARTHQUAKE M7.2"
+            color="#f87171"
+            borderColor="rgba(239,68,68,0.28)"
+            bg="rgba(239,68,68,0.07)"
+          />
+          <MetricPill
+            icon={<Cpu size={12} />}
+            label="Swarm Fleet"
+            value={`${activeDronesCount} UAV + ${activeHexapodsCount} Hexa`}
+            color="#fb923c"
+            borderColor="rgba(255,107,44,0.22)"
+            bg="rgba(255,107,44,0.06)"
+          />
+          <MetricPill
+            icon={<Shield size={12} />}
+            label="Geofence"
+            value={`${geofenceIntegrityScore}% Locked`}
+            color="#67e8f9"
+            borderColor="rgba(6,182,212,0.22)"
+            bg="rgba(6,182,212,0.06)"
+          />
+          <MetricPill
+            icon={<Layers size={12} />}
+            label="Coverage"
+            value={`${searchedPercentage}%`}
+            color="#fde68a"
+            borderColor="rgba(245,158,11,0.22)"
+            bg="rgba(245,158,11,0.06)"
+          />
+          <MetricPill
+            icon={<Wifi size={12} />}
+            label="868MHz Mesh"
+            value={`${meshHealthScore}%`}
+            color="#6ee7b7"
+            borderColor="rgba(16,185,129,0.22)"
+            bg="rgba(16,185,129,0.06)"
+          />
         </div>
 
-        {/* Right Status Actions & Mode Switcher */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-[#141722] p-1 rounded-xl border border-white/10 shadow-inner">
-            <button
-              onClick={() => onToggleMode('MOCK_SIMULATION')}
-              className={`px-3 py-1 text-[10.5px] font-mono font-bold rounded-lg transition-all ${
-                missionMode === 'MOCK_SIMULATION'
-                  ? 'bg-gradient-to-r from-[#ff4b1f] to-[#ff6b2c] text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ACS SIM
-            </button>
-            <button
-              onClick={() => onToggleMode('LIVE_HARDWARE')}
-              className={`px-3 py-1 text-[10.5px] font-mono font-bold rounded-lg transition-all ${
-                missionMode === 'LIVE_HARDWARE'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              LIVE HARDWARE
-            </button>
-          </div>
-
-          <div className="text-right hidden xl:block">
-            <div className="text-[9px] font-mono text-slate-400">COMMAND GCS</div>
-            <div className="text-xs font-mono text-white font-semibold">ALPHA_COMMAND_01</div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ff6b2c] to-[#ff4b1f] p-0.5 shadow-md">
-            <div className="w-full h-full bg-[#0e1118] rounded-[10px] flex items-center justify-center text-white text-xs font-bold font-mono">
-              NNP
-            </div>
-          </div>
+        {/* ── LIVE INDICATOR ── */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-mono text-[9px] text-slate-500 hidden md:block">LIVE</span>
         </div>
+
+        {/* ── Divider ── */}
+        <div className="w-px h-7 shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+
+        {/* ── MODE SWITCHER ── */}
+        <div
+          className="flex items-center gap-0.5 p-0.5 rounded-lg shrink-0"
+          style={{ background: 'rgba(15,18,30,0.95)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          {(['MOCK_SIMULATION', 'LIVE_HARDWARE'] as const).map((mode) => {
+            const isActive = missionMode === mode;
+            const label = mode === 'MOCK_SIMULATION' ? 'SIM' : 'HW';
+            return (
+              <button
+                key={mode}
+                onClick={() => onToggleMode(mode)}
+                className="px-3 py-1.5 rounded-md font-mono text-[10px] font-bold transition-all"
+                style={isActive ? {
+                  background: mode === 'MOCK_SIMULATION'
+                    ? 'linear-gradient(135deg,#ff4b1f,#ff6b2c)'
+                    : 'linear-gradient(135deg,#0891b2,#06b6d4)',
+                  color: '#fff',
+                  boxShadow: mode === 'MOCK_SIMULATION'
+                    ? '0 2px 10px rgba(255,107,44,0.45)'
+                    : '0 2px 10px rgba(6,182,212,0.45)',
+                } : { color: '#475569' }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
       </div>
+
+      {/* Bottom accent line */}
+      <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,107,44,0.35) 30%,rgba(255,107,44,0.35) 70%,transparent)' }} />
     </header>
   );
 };

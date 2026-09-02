@@ -8,10 +8,15 @@ import {
   SwarmMissionStats 
 } from '../types';
 
-export const BASE_CENTER = { lat: 28.6139, lng: 77.2090 };
+// ============================================================================
+// BASE GEODETIC REFERENCE: Urban Disaster Complex (120m x 120m Footprint)
+// Downscaled for real-world drone & hexabot proportions on satellite view
+// ============================================================================
+export const BASE_CENTER = { lat: 28.61390, lng: 77.20900 };
 
 // ---------------------------------------------------------------------------
 // 1. AERIAL SWARM: 10 Autonomous Ant Quadcopters (4 Perimeter Ring + 6 Interior Core)
+// Distributed across building quadrants without clustering
 // ---------------------------------------------------------------------------
 export const INITIAL_DRONES: DroneTelemetry[] = [
   // ================= INTERIOR CORE SEARCH GROUP (6 UAVs) =================
@@ -21,15 +26,15 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.6145, lng: 77.2098, altitude: 45 },
-    heading: 48,
-    groundSpeed: 14.8,
+    position: { lat: 28.61430, lng: 77.20870, altitude: 28 }, // North Wing Roof Void
+    heading: 45,
+    groundSpeed: 5.8,
     verticalSpeed: 0.2,
     motorRpm: [6200, 6180, 6210, 6190],
     flightTimeSec: 840,
-    distanceTraveledM: 3420,
+    distanceTraveledM: 920,
     battery: { 
-      level: 82, 
+      level: 84, 
       voltage: 24.6, 
       temperature: 31.2, 
       cellVoltages: [4.10, 4.10, 4.09, 4.11, 4.10, 4.10],
@@ -38,8 +43,8 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
       isLow: false 
     },
     link: { 
-      rssi: -62, 
-      snr: 11.4, 
+      rssi: -58, 
+      snr: 12.4, 
       packetLoss: 0.1, 
       frequencyMhz: 868.1, 
       txPowerDbm: 20, 
@@ -48,14 +53,14 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     },
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.05, repulsionDelta: 0.0, highestTrailAngle: 50, localDecayRate: 0.015 },
-      nearbyDronesCount: 2,
-      neighborIds: ['ANT-03', 'ANT-07'],
+      nearbyDronesCount: 1,
+      neighborIds: ['ANT-03'],
       localObstacleDetected: false,
-      obstacleDistanceM: 45.0,
+      obstacleDistanceM: 25.0,
       localThermalHotspot: false,
       thermalDeltaC: 0.4,
       currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Interior Core: Dispersed ACS grid survey over Sector 7-G rubble slab'
+      autonomousGoal: 'North Wing: Dispersed ACS raster survey over collapsed roof slab'
     },
     payload: { 
       type: 'LIFELINE_FIRST_AID', 
@@ -65,23 +70,77 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     },
     sensors: { 
       thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.2 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 40, coverageDeg: 360 },
       optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x Optical', gimbalPitchDeg: -35 }
     }
   },
   {
-    id: 'ANT-03',
-    callsign: 'RELAY-CHARLIE',
+    id: 'ANT-02',
+    callsign: 'RELAY-BRAVO',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.6110, lng: 77.2050, altitude: 120 },
-    heading: 95,
-    groundSpeed: 8.5,
+    position: { lat: 28.61350, lng: 77.20860, altitude: 22 }, // South-West Debris Cavity
+    heading: 135,
+    groundSpeed: 6.2,
+    verticalSpeed: 0.0,
+    motorRpm: [5900, 5920, 5890, 5910],
+    flightTimeSec: 620,
+    distanceTraveledM: 740,
+    battery: { 
+      level: 78, 
+      voltage: 24.3, 
+      temperature: 29.5, 
+      cellVoltages: [4.05, 4.04, 4.05, 4.04, 4.05, 4.05],
+      capacityMah: 5000,
+      cyclesCount: 30,
+      isLow: false 
+    },
+    link: { 
+      rssi: -60, 
+      snr: 11.2, 
+      packetLoss: 0.0, 
+      frequencyMhz: 868.1, 
+      txPowerDbm: 20, 
+      meshHopCount: 1, 
+      status: 'OPTIMAL' 
+    },
+    perception: {
+      sensedPheromoneGradient: { recruitmentDelta: 0.02, repulsionDelta: 0.0, highestTrailAngle: 130, localDecayRate: 0.015 },
+      nearbyDronesCount: 1,
+      neighborIds: ['ANT-06'],
+      localObstacleDetected: false,
+      obstacleDistanceM: 30.0,
+      localThermalHotspot: false,
+      thermalDeltaC: 0.2,
+      currentStigmergicState: 'FORAGING_SCOUT',
+      autonomousGoal: 'South-West Annex: Acoustic seismic geophone alignment scan'
+    },
+    payload: { 
+      type: 'LORA_MESH_REPEATER', 
+      weightKg: 0.60, 
+      status: 'ARMED', 
+      releaseMechanism: 'INTERNAL_BAY' 
+    },
+    sensors: { 
+      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.0 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 40, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '2x', gimbalPitchDeg: -45 }
+    }
+  },
+  {
+    id: 'ANT-03',
+    callsign: 'ATRIUM-CHARLIE',
+    role: 'ACS_FORAGER',
+    status: 'PATROL',
+    zoneAssignment: 'INTERIOR_CORE',
+    position: { lat: 28.61390, lng: 77.20900, altitude: 35 }, // Central Atrium
+    heading: 90,
+    groundSpeed: 4.5,
     verticalSpeed: 0.0,
     motorRpm: [5800, 5820, 5790, 5810],
     flightTimeSec: 1200,
-    distanceTraveledM: 2100,
+    distanceTraveledM: 1100,
     battery: { 
       level: 76, 
       voltage: 24.2, 
@@ -92,7 +151,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
       isLow: false 
     },
     link: { 
-      rssi: -54, 
+      rssi: -52, 
       snr: 14.2, 
       packetLoss: 0.0, 
       frequencyMhz: 868.1, 
@@ -102,14 +161,14 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     },
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.02, repulsionDelta: 0.0, highestTrailAngle: 90, localDecayRate: 0.015 },
-      nearbyDronesCount: 3,
-      neighborIds: ['ANT-01', 'ANT-04', 'ANT-09'],
+      nearbyDronesCount: 2,
+      neighborIds: ['ANT-01', 'ANT-04'],
       localObstacleDetected: false,
-      obstacleDistanceM: 120.0,
+      obstacleDistanceM: 50.0,
       localThermalHotspot: false,
       thermalDeltaC: 0.1,
       currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Interior Core: High-altitude air-ground mesh bridge linking UAVs to Hexapods'
+      autonomousGoal: 'Central Atrium: Vertical multi-tier void inspection'
     },
     payload: { 
       type: 'LORA_MESH_REPEATER', 
@@ -118,63 +177,63 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
       releaseMechanism: 'INTERNAL_BAY' 
     },
     sensors: { 
-      thermal: { status: 'STANDBY', fovDeg: 45, fps: 15, radiometricTempC: 15.0 },
-      lidar: { status: 'ONLINE', pointRateKhz: 100, rangeM: 150, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '1080p Tactical', zoomLevel: '2x', gimbalPitchDeg: -90 }
+      thermal: { status: 'ONLINE', fovDeg: 45, fps: 30, radiometricTempC: 15.0 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 60, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -90 }
     }
   },
   {
     id: 'ANT-04',
     callsign: 'CARRIER-DELTA',
     role: 'ACS_PAYLOAD_ANT',
-    status: 'LOW BATT',
+    status: 'SEARCHING',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.6095, lng: 77.2030, altitude: 55 },
-    heading: 260,
-    groundSpeed: 18.0,
-    verticalSpeed: -0.4,
-    motorRpm: [6800, 6790, 6810, 6800],
-    flightTimeSec: 1450,
-    distanceTraveledM: 5200,
+    position: { lat: 28.61435, lng: 77.20940, altitude: 24 }, // North-East Rubble Void
+    heading: 220,
+    groundSpeed: 5.4,
+    verticalSpeed: -0.1,
+    motorRpm: [6400, 6390, 6410, 6400],
+    flightTimeSec: 950,
+    distanceTraveledM: 880,
     battery: { 
-      level: 21, 
-      voltage: 21.8, 
-      temperature: 39.5, 
-      cellVoltages: [3.63, 3.64, 3.62, 3.63, 3.64, 3.64],
+      level: 68, 
+      voltage: 23.9, 
+      temperature: 32.5, 
+      cellVoltages: [3.98, 3.99, 3.98, 3.98, 3.99, 3.98],
       capacityMah: 5000,
-      cyclesCount: 68,
-      isLow: true 
+      cyclesCount: 38,
+      isLow: false 
     },
     link: { 
-      rssi: -82, 
-      snr: 4.5, 
-      packetLoss: 2.1, 
+      rssi: -62, 
+      snr: 10.5, 
+      packetLoss: 0.2, 
       frequencyMhz: 868.5, 
       txPowerDbm: 20, 
-      meshHopCount: 2, 
-      status: 'DEGRADED' 
+      meshHopCount: 1, 
+      status: 'OPTIMAL' 
     },
     perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.0, repulsionDelta: 0.8, highestTrailAngle: 260, localDecayRate: 0.015 },
-      nearbyDronesCount: 0,
-      neighborIds: [],
-      localObstacleDetected: true,
+      sensedPheromoneGradient: { recruitmentDelta: 0.0, repulsionDelta: 0.0, highestTrailAngle: 220, localDecayRate: 0.015 },
+      nearbyDronesCount: 1,
+      neighborIds: ['ANT-03'],
+      localObstacleDetected: false,
       obstacleDistanceM: 18.2,
       localThermalHotspot: false,
       thermalDeltaC: 0.0,
-      currentStigmergicState: 'RETURNING_NEST',
-      autonomousGoal: 'Interior Core: Low-battery emergency RTH trajectory to central pad'
+      currentStigmergicState: 'FORAGING_SCOUT',
+      autonomousGoal: 'North-East Rubble: Thermal gradient floor search'
     },
     payload: { 
       type: 'AUTOMATED_DEFIBRILLATOR', 
       weightKg: 1.40, 
-      status: 'STANDBY', 
+      status: 'ARMED', 
       releaseMechanism: 'SERVO_DROP' 
     },
     sensors: { 
       thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 16.1 },
-      lidar: { status: 'STANDBY', pointRateKhz: 50, rangeM: 40, coverageDeg: 180 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '1x', gimbalPitchDeg: -20 }
+      lidar: { status: 'ONLINE', pointRateKhz: 150, rangeM: 40, coverageDeg: 180 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '2x', gimbalPitchDeg: -20 }
     }
   },
   {
@@ -183,26 +242,26 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     role: 'ACS_RECRUITER',
     status: 'SEARCHING',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.6168, lng: 77.2062, altitude: 60 },
+    position: { lat: 28.61350, lng: 77.20945, altitude: 26 }, // South-East Column Shear
     heading: 315,
-    groundSpeed: 16.2,
+    groundSpeed: 6.0,
     verticalSpeed: 0.1,
     motorRpm: [6500, 6490, 6510, 6500],
     flightTimeSec: 720,
-    distanceTraveledM: 3100,
+    distanceTraveledM: 670,
     battery: { 
-      level: 67, 
-      voltage: 23.9, 
+      level: 72, 
+      voltage: 24.1, 
       temperature: 31.0, 
-      cellVoltages: [3.98, 3.98, 3.99, 3.98, 3.98, 3.99],
+      cellVoltages: [4.01, 4.02, 4.01, 4.02, 4.01, 4.01],
       capacityMah: 5000,
       cyclesCount: 22,
       isLow: false 
     },
     link: { 
-      rssi: -65, 
-      snr: 10.5, 
-      packetLoss: 0.4, 
+      rssi: -59, 
+      snr: 11.5, 
+      packetLoss: 0.1, 
       frequencyMhz: 868.1, 
       txPowerDbm: 20, 
       meshHopCount: 1, 
@@ -210,14 +269,14 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     },
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.65, repulsionDelta: 0.0, highestTrailAngle: 320, localDecayRate: 0.015 },
-      nearbyDronesCount: 2,
-      neighborIds: ['ANT-08', 'ANT-10'],
+      nearbyDronesCount: 1,
+      neighborIds: ['ANT-02'],
       localObstacleDetected: false,
-      obstacleDistanceM: 65.0,
+      obstacleDistanceM: 28.0,
       localThermalHotspot: true,
-      thermalDeltaC: 6.8,
+      thermalDeltaC: 5.4,
       currentStigmergicState: 'RECRUITING_SWARM',
-      autonomousGoal: 'Interior Core: Concentrating recruitment field over pancake collapse void'
+      autonomousGoal: 'South-East Shear: Concentrating recruitment field over pancake collapse'
     },
     payload: { 
       type: 'THERMAL_OPTICAL_GIMBAL', 
@@ -227,89 +286,91 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     },
     sensors: { 
       thermal: { status: 'ONLINE', fovDeg: 62, fps: 60, radiometricTempC: 22.4 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 50, coverageDeg: 360 },
       optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '8x Optical', gimbalPitchDeg: -60 }
     }
   },
   {
-    id: 'ANT-07',
-    callsign: 'FORAGER-GOLF',
+    id: 'ANT-06',
+    callsign: 'FORAGER-FOXTROT',
     role: 'ACS_FORAGER',
-    status: 'ENGAGED',
+    status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.6150, lng: 77.2105, altitude: 50 },
-    heading: 30,
-    groundSpeed: 21.0,
-    verticalSpeed: 0.3,
-    motorRpm: [7300, 7290, 7310, 7300],
-    flightTimeSec: 990,
-    distanceTraveledM: 4800,
+    position: { lat: 28.61395, lng: 77.20845, altitude: 20 }, // West Annex Ingress
+    heading: 10,
+    groundSpeed: 5.0,
+    verticalSpeed: 0.0,
+    motorRpm: [6100, 6090, 6110, 6100],
+    flightTimeSec: 540,
+    distanceTraveledM: 510,
     battery: { 
-      level: 56, 
-      voltage: 23.3, 
+      level: 88, 
+      voltage: 24.8, 
+      temperature: 27.8, 
+      cellVoltages: [4.13, 4.14, 4.13, 4.13, 4.14, 4.13],
+      capacityMah: 5000,
+      cyclesCount: 18,
+      isLow: false 
+    },
+    link: { 
+      rssi: -55, 
+      snr: 13.8, 
+      packetLoss: 0.0, 
+      frequencyMhz: 868.1, 
+      txPowerDbm: 20, 
+      meshHopCount: 0, 
+      status: 'OPTIMAL' 
+    },
+    perception: {
+      sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 10, localDecayRate: 0.015 },
+      nearbyDronesCount: 1,
+      neighborIds: ['ANT-02'],
+      localObstacleDetected: false,
+      obstacleDistanceM: 20.0,
+      localThermalHotspot: false,
+      thermalDeltaC: 0.0,
+      currentStigmergicState: 'FORAGING_SCOUT',
+      autonomousGoal: 'West Annex: Low-altitude breach penetration scout'
+    },
+    payload: { 
+      type: 'LIFELINE_FIRST_AID', 
+      weightKg: 0.85, 
+      status: 'ARMED', 
+      releaseMechanism: 'MAGNETIC_LATCH' 
+    },
+    sensors: { 
+      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.4 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 30, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '2x', gimbalPitchDeg: -30 }
+    }
+  },
+
+  // ================= PERIMETER RING SWARM GROUP (4 UAVs) =================
+  {
+    id: 'ANT-07',
+    callsign: 'RING-NORTH',
+    role: 'ACS_FORAGER',
+    status: 'PATROL',
+    zoneAssignment: 'PERIMETER_RING',
+    position: { lat: 28.61470, lng: 77.20900, altitude: 32 }, // North Airspace Orbit
+    heading: 90,
+    groundSpeed: 7.2,
+    verticalSpeed: 0.0,
+    motorRpm: [6800, 6790, 6810, 6800],
+    flightTimeSec: 990,
+    distanceTraveledM: 1400,
+    battery: { 
+      level: 65, 
+      voltage: 23.6, 
       temperature: 33.5, 
-      cellVoltages: [3.88, 3.89, 3.88, 3.88, 3.89, 3.88],
+      cellVoltages: [3.93, 3.94, 3.93, 3.94, 3.93, 3.94],
       capacityMah: 5000,
       cyclesCount: 45,
       isLow: false 
     },
     link: { 
       rssi: -64, 
-      snr: 10.8, 
-      packetLoss: 0.2, 
-      frequencyMhz: 868.1, 
-      txPowerDbm: 20, 
-      meshHopCount: 1, 
-      status: 'OPTIMAL' 
-    },
-    perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.85, repulsionDelta: 0.0, highestTrailAngle: 30, localDecayRate: 0.015 },
-      nearbyDronesCount: 3,
-      neighborIds: ['ANT-01', 'ANT-05', 'ANT-09'],
-      localObstacleDetected: false,
-      obstacleDistanceM: 52.0,
-      localThermalHotspot: true,
-      thermalDeltaC: 18.2,
-      currentStigmergicState: 'FOLLOWING_TRAIL',
-      autonomousGoal: 'Interior Core: Rapid delivery trajectory to casualty CAS-EQ-01'
-    },
-    payload: { 
-      type: 'RAPID_TRAUMA_KIT', 
-      weightKg: 1.20, 
-      status: 'ARMED', 
-      releaseMechanism: 'MAGNETIC_LATCH' 
-    },
-    sensors: { 
-      thermal: { status: 'ONLINE', fovDeg: 62, fps: 60, radiometricTempC: 34.2 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '8x Optical', gimbalPitchDeg: -70 }
-    }
-  },
-  {
-    id: 'ANT-09',
-    callsign: 'CARRIER-INDIA',
-    role: 'ACS_PAYLOAD_ANT',
-    status: 'PATROL',
-    zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.6105, lng: 77.2120, altitude: 80 },
-    heading: 110,
-    groundSpeed: 15.0,
-    verticalSpeed: 0.0,
-    motorRpm: [6300, 6310, 6290, 6300],
-    flightTimeSec: 810,
-    distanceTraveledM: 3500,
-    battery: { 
-      level: 69, 
-      voltage: 23.8, 
-      temperature: 31.8, 
-      cellVoltages: [3.96, 3.97, 3.96, 3.97, 3.96, 3.97],
-      capacityMah: 5000,
-      cyclesCount: 38,
-      isLow: false 
-    },
-    link: { 
-      rssi: -67, 
-      snr: 9.5, 
+      snr: 10.2, 
       packetLoss: 0.3, 
       frequencyMhz: 868.3, 
       txPowerDbm: 20, 
@@ -317,55 +378,107 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
       status: 'OPTIMAL' 
     },
     perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.3, repulsionDelta: 0.0, highestTrailAngle: 110, localDecayRate: 0.015 },
+      sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 90, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-03'],
+      neighborIds: ['ANT-01'],
       localObstacleDetected: false,
-      obstacleDistanceM: 85.0,
+      obstacleDistanceM: 40.0,
       localThermalHotspot: false,
-      thermalDeltaC: 0.2,
+      thermalDeltaC: 0.0,
       currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Interior Core: Southeast mudslide debris corridor patrol'
+      autonomousGoal: 'Perimeter Ring: North Building Facade surveillance orbit'
     },
     payload: { 
-      type: 'SURVIVAL_RATION_DEPLOYER', 
-      weightKg: 1.30, 
+      type: 'LORA_MESH_REPEATER', 
+      weightKg: 0.60, 
       status: 'ARMED', 
-      releaseMechanism: 'SERVO_DROP' 
+      releaseMechanism: 'INTERNAL_BAY' 
     },
     sensors: { 
-      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.5 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -50 }
+      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.0 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 60, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -35 }
     }
   },
-
-  // ================= PERIMETER RING SURROUND PATROL GROUP (4 UAVs) =================
   {
-    id: 'ANT-02',
-    callsign: 'SCOUT-BRAVO',
-    role: 'ACS_TRAIL_BLAZER',
+    id: 'ANT-08',
+    callsign: 'RING-EAST',
+    role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.6220, lng: 77.2320, altitude: 85 },
-    heading: 175,
-    groundSpeed: 22.4,
-    verticalSpeed: -0.1,
-    motorRpm: [7400, 7380, 7420, 7390],
-    flightTimeSec: 920,
-    distanceTraveledM: 4120,
+    position: { lat: 28.61390, lng: 77.20980, altitude: 30 }, // East Airspace Orbit
+    heading: 180,
+    groundSpeed: 7.0,
+    verticalSpeed: 0.0,
+    motorRpm: [6700, 6690, 6710, 6700],
+    flightTimeSec: 880,
+    distanceTraveledM: 1250,
     battery: { 
-      level: 88, 
-      voltage: 24.9, 
-      temperature: 29.8, 
-      cellVoltages: [4.15, 4.14, 4.15, 4.15, 4.14, 4.15],
+      level: 70, 
+      voltage: 23.9, 
+      temperature: 30.8, 
+      cellVoltages: [3.99, 3.98, 3.99, 3.98, 3.99, 3.99],
       capacityMah: 5000,
-      cyclesCount: 31,
+      cyclesCount: 34,
       isLow: false 
     },
     link: { 
-      rssi: -68, 
-      snr: 9.8, 
+      rssi: -60, 
+      snr: 11.5, 
+      packetLoss: 0.1, 
+      frequencyMhz: 868.3, 
+      txPowerDbm: 20, 
+      meshHopCount: 1, 
+      status: 'OPTIMAL' 
+    },
+    perception: {
+      sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 180, localDecayRate: 0.015 },
+      nearbyDronesCount: 1,
+      neighborIds: ['ANT-04'],
+      localObstacleDetected: false,
+      obstacleDistanceM: 45.0,
+      localThermalHotspot: false,
+      thermalDeltaC: 0.0,
+      currentStigmergicState: 'FORAGING_SCOUT',
+      autonomousGoal: 'Perimeter Ring: East Loading Dock and Rubble wall orbit'
+    },
+    payload: { 
+      type: 'LIFELINE_FIRST_AID', 
+      weightKg: 0.85, 
+      status: 'ARMED', 
+      releaseMechanism: 'MAGNETIC_LATCH' 
+    },
+    sensors: { 
+      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.3 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 60, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -35 }
+    }
+  },
+  {
+    id: 'ANT-09',
+    callsign: 'RING-SOUTH',
+    role: 'ACS_FORAGER',
+    status: 'PATROL',
+    zoneAssignment: 'PERIMETER_RING',
+    position: { lat: 28.61310, lng: 77.20900, altitude: 30 }, // South Airspace Orbit
+    heading: 270,
+    groundSpeed: 7.2,
+    verticalSpeed: 0.0,
+    motorRpm: [6800, 6790, 6810, 6800],
+    flightTimeSec: 1040,
+    distanceTraveledM: 1500,
+    battery: { 
+      level: 62, 
+      voltage: 23.4, 
+      temperature: 34.0, 
+      cellVoltages: [3.90, 3.91, 3.90, 3.90, 3.91, 3.90],
+      capacityMah: 5000,
+      cyclesCount: 48,
+      isLow: false 
+    },
+    link: { 
+      rssi: -62, 
+      snr: 10.8, 
       packetLoss: 0.2, 
       frequencyMhz: 868.3, 
       txPowerDbm: 20, 
@@ -373,194 +486,86 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
       status: 'OPTIMAL' 
     },
     perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.15, repulsionDelta: 0.0, highestTrailAngle: 170, localDecayRate: 0.015 },
+      sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 270, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-06'],
+      neighborIds: ['ANT-02'],
       localObstacleDetected: false,
-      obstacleDistanceM: 80.0,
+      obstacleDistanceM: 40.0,
       localThermalHotspot: false,
-      thermalDeltaC: 0.2,
+      thermalDeltaC: 0.0,
       currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Perimeter Ring: East Ridge Boundary patrol & Hexapod-3 laser sync'
+      autonomousGoal: 'Perimeter Ring: South Staging Zone and Access Ramp orbit'
     },
     payload: { 
-      type: 'SENSOR_POD_ADVANCED', 
-      weightKg: 0.40, 
-      status: 'STANDBY', 
+      type: 'LORA_MESH_REPEATER', 
+      weightKg: 0.60, 
+      status: 'ARMED', 
       releaseMechanism: 'INTERNAL_BAY' 
     },
     sensors: { 
       thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 14.8 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '10x Optical', gimbalPitchDeg: -45 }
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 60, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -35 }
     }
   },
   {
-    id: 'ANT-06',
-    callsign: 'BLAZER-FOXTROT',
-    role: 'ACS_TRAIL_BLAZER',
+    id: 'ANT-10',
+    callsign: 'RING-WEST',
+    role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.5975, lng: 77.2080, altitude: 75 },
-    heading: 90,
-    groundSpeed: 19.5,
+    position: { lat: 28.61390, lng: 77.20815, altitude: 32 }, // West Airspace Orbit
+    heading: 0,
+    groundSpeed: 7.1,
     verticalSpeed: 0.0,
-    motorRpm: [7100, 7090, 7120, 7100],
-    flightTimeSec: 680,
-    distanceTraveledM: 3600,
+    motorRpm: [6750, 6740, 6760, 6750],
+    flightTimeSec: 910,
+    distanceTraveledM: 1320,
     battery: { 
-      level: 73, 
-      voltage: 24.1, 
-      temperature: 30.1, 
-      cellVoltages: [4.02, 4.01, 4.02, 4.02, 4.01, 4.02],
+      level: 67, 
+      voltage: 23.7, 
+      temperature: 32.0, 
+      cellVoltages: [3.95, 3.96, 3.95, 3.95, 3.96, 3.95],
       capacityMah: 5000,
-      cyclesCount: 19,
+      cyclesCount: 40,
       isLow: false 
     },
     link: { 
-      rssi: -71, 
-      snr: 8.9, 
-      packetLoss: 0.5, 
+      rssi: -61, 
+      snr: 11.0, 
+      packetLoss: 0.2, 
       frequencyMhz: 868.3, 
       txPowerDbm: 20, 
       meshHopCount: 1, 
       status: 'OPTIMAL' 
     },
     perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 140, localDecayRate: 0.015 },
+      sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 0, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-02'],
+      neighborIds: ['ANT-06'],
       localObstacleDetected: false,
-      obstacleDistanceM: 70.0,
+      obstacleDistanceM: 40.0,
       localThermalHotspot: false,
-      thermalDeltaC: 0.3,
+      thermalDeltaC: 0.0,
       currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Perimeter Ring: South Boundary patrol & Hexapod-1/2 link monitoring'
+      autonomousGoal: 'Perimeter Ring: West Structural Collapse Anchor alignment orbit'
     },
     payload: { 
-      type: 'BEACON_MARKER_DISPENSER', 
-      weightKg: 0.70, 
+      type: 'AUTOMATED_DEFIBRILLATOR', 
+      weightKg: 1.40, 
       status: 'ARMED', 
       releaseMechanism: 'SERVO_DROP' 
     },
     sensors: { 
-      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.0 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -45 }
-    }
-  },
-  {
-    id: 'ANT-08',
-    callsign: 'SCOUT-HOTEL',
-    role: 'ACS_TRAIL_BLAZER',
-    status: 'SEARCHING',
-    zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.6305, lng: 77.2085, altitude: 90 },
-    heading: 270,
-    groundSpeed: 17.5,
-    verticalSpeed: -0.1,
-    motorRpm: [6600, 6580, 6610, 6590],
-    flightTimeSec: 540,
-    distanceTraveledM: 2800,
-    battery: { 
-      level: 91, 
-      voltage: 25.1, 
-      temperature: 28.2, 
-      cellVoltages: [4.18, 4.19, 4.18, 4.18, 4.19, 4.18],
-      capacityMah: 5000,
-      cyclesCount: 12,
-      isLow: false 
-    },
-    link: { 
-      rssi: -60, 
-      snr: 12.5, 
-      packetLoss: 0.0, 
-      frequencyMhz: 868.5, 
-      txPowerDbm: 20, 
-      meshHopCount: 1, 
-      status: 'OPTIMAL' 
-    },
-    perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.2, repulsionDelta: 0.1, highestTrailAngle: 215, localDecayRate: 0.015 },
-      nearbyDronesCount: 2,
-      neighborIds: ['ANT-05', 'ANT-10'],
-      localObstacleDetected: false,
-      obstacleDistanceM: 90.0,
-      localThermalHotspot: false,
-      thermalDeltaC: 0.5,
-      currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Perimeter Ring: North Escarpment patrol & Hexapod-4/5 laser boundary'
-    },
-    payload: { 
-      type: 'MULTI_SPECTRAL_POD', 
-      weightKg: 0.50, 
-      status: 'ARMED', 
-      releaseMechanism: 'INTERNAL_BAY' 
-    },
-    sensors: { 
-      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 14.5 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -45 }
-    }
-  },
-  {
-    id: 'ANT-10',
-    callsign: 'RECRUIT-JULIETT',
-    role: 'ACS_RECRUITER',
-    status: 'PATROL',
-    zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.6140, lng: 77.1870, altitude: 80 },
-    heading: 0,
-    groundSpeed: 19.0,
-    verticalSpeed: 0.1,
-    motorRpm: [7000, 6990, 7010, 7000],
-    flightTimeSec: 600,
-    distanceTraveledM: 3200,
-    battery: { 
-      level: 85, 
-      voltage: 24.7, 
-      temperature: 29.1, 
-      cellVoltages: [4.12, 4.11, 4.12, 4.12, 4.11, 4.12],
-      capacityMah: 5000,
-      cyclesCount: 15,
-      isLow: false 
-    },
-    link: { 
-      rssi: -58, 
-      snr: 13.0, 
-      packetLoss: 0.1, 
-      frequencyMhz: 868.5, 
-      txPowerDbm: 20, 
-      meshHopCount: 0, 
-      status: 'OPTIMAL' 
-    },
-    perception: {
-      sensedPheromoneGradient: { recruitmentDelta: 0.4, repulsionDelta: 0.0, highestTrailAngle: 280, localDecayRate: 0.015 },
-      nearbyDronesCount: 2,
-      neighborIds: ['ANT-05', 'ANT-08'],
-      localObstacleDetected: false,
-      obstacleDistanceM: 75.0,
-      localThermalHotspot: false,
-      thermalDeltaC: 0.4,
-      currentStigmergicState: 'FORAGING_SCOUT',
-      autonomousGoal: 'Perimeter Ring: West Canyon Gate patrol & Hexapod-6 anchor alignment'
-    },
-    payload: { 
-      type: 'RF_LOCATOR_HOMING', 
-      weightKg: 0.65, 
-      status: 'ARMED', 
-      releaseMechanism: 'INTERNAL_BAY' 
-    },
-    sensors: { 
-      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 14.9 },
-      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 100, coverageDeg: 360 },
-      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '6x', gimbalPitchDeg: -40 }
+      thermal: { status: 'ONLINE', fovDeg: 57, fps: 30, radiometricTempC: 15.1 },
+      lidar: { status: 'ONLINE', pointRateKhz: 200, rangeM: 60, coverageDeg: 360 },
+      optical: { status: 'ONLINE', resolution: '4K UltraHD', zoomLevel: '4x', gimbalPitchDeg: -35 }
     }
   }
 ];
 
 // ---------------------------------------------------------------------------
-// 2. GROUND HEXAPOD ROBOTS: 6 Autonomous Anchors Forming Expansive Geofence (~140 km²)
+// 2. GROUND HEXAPOD ROBOTS: 6 Autonomous Ground Anchors (Building Perimeter)
 // ---------------------------------------------------------------------------
 export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
   {
@@ -568,13 +573,13 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'TITAN-CRAWLER-1',
     role: 'PERIMETER_ANCHOR',
     status: 'ANCHORED',
-    perimeterVertexName: 'South-West Ridge Node',
-    position: { lat: 28.5980, lng: 77.1890, altitude: 215, terrainSlopeDeg: 12 },
-    heading: 45,
-    crawlSpeed: 0.8,
+    perimeterVertexName: 'North Gate Perimeter Anchor',
+    position: { lat: 28.61455, lng: 77.20900, altitude: 4, terrainSlopeDeg: 6 },
+    heading: 180,
+    crawlSpeed: 0.4,
     gaitMode: 'ANCHOR_LOCK',
     legServoAnglesDeg: [45, 46, 44, 45, 45, 46],
-    groundStabilityIndex: 94,
+    groundStabilityIndex: 96,
     seismicAcoustic: {
       vibrationMmS: 0.4,
       acousticDecibels: 28,
@@ -584,11 +589,11 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     soilMoisturePercent: 32,
     geofenceLaser: {
       connectedToHexaId: 'HEXA-02',
-      laserRangeM: 3950,
+      laserRangeM: 85,
       perimeterLock: true,
       activeLaserSignal: true
     },
-    stepCycleCount: 4120,
+    stepCycleCount: 1420,
     battery: {
       level: 92,
       voltage: 25.2,
@@ -599,8 +604,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
       isLow: false
     },
     link: {
-      rssi: -58,
-      snr: 13.5,
+      rssi: -55,
+      snr: 14.5,
       packetLoss: 0.0,
       frequencyMhz: 868.1,
       txPowerDbm: 24,
@@ -622,28 +627,28 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     id: 'HEXA-02',
     callsign: 'GEO-WATCHER-2',
     role: 'GEOFENCE_BEACON',
-    status: 'PATROLLING_PERIMETER',
-    perimeterVertexName: 'South-East Flank Node',
-    position: { lat: 28.5970, lng: 77.2280, altitude: 228, terrainSlopeDeg: 24 },
-    heading: 350,
-    crawlSpeed: 1.2,
-    gaitMode: 'RIPPLE_SLOPE',
+    status: 'ANCHORED',
+    perimeterVertexName: 'North-East Rubble Void Anchor',
+    position: { lat: 28.61445, lng: 77.20965, altitude: 6, terrainSlopeDeg: 14 },
+    heading: 235,
+    crawlSpeed: 0.3,
+    gaitMode: 'ANCHOR_LOCK',
     legServoAnglesDeg: [52, 54, 50, 53, 51, 52],
-    groundStabilityIndex: 81,
+    groundStabilityIndex: 88,
     seismicAcoustic: {
-      vibrationMmS: 1.2,
+      vibrationMmS: 0.8,
       acousticDecibels: 35,
       tapEchoConfidence: 22,
       tremorDetected: false
     },
-    soilMoisturePercent: 48,
+    soilMoisturePercent: 40,
     geofenceLaser: {
       connectedToHexaId: 'HEXA-03',
-      laserRangeM: 2150,
+      laserRangeM: 110,
       perimeterLock: true,
       activeLaserSignal: true
     },
-    stepCycleCount: 5890,
+    stepCycleCount: 1890,
     battery: {
       level: 86,
       voltage: 24.8,
@@ -654,9 +659,9 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
       isLow: false
     },
     link: {
-      rssi: -62,
-      snr: 11.8,
-      packetLoss: 0.1,
+      rssi: -58,
+      snr: 12.8,
+      packetLoss: 0.0,
       frequencyMhz: 868.3,
       txPowerDbm: 24,
       meshHopCount: 0,
@@ -678,43 +683,43 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'RUBBLE-CRAWLER-3',
     role: 'RUBBLE_INFILTRATOR',
     status: 'INFILTRATING_RUBBLE',
-    perimeterVertexName: 'East Fault Scarp Node',
-    position: { lat: 28.6140, lng: 77.2340, altitude: 242, terrainSlopeDeg: 38 },
-    heading: 280,
+    perimeterVertexName: 'South-East Wall Breach Anchor',
+    position: { lat: 28.61335, lng: 77.20965, altitude: 5, terrainSlopeDeg: 28 },
+    heading: 300,
     crawlSpeed: 0.5,
     gaitMode: 'WAVE_STABLE',
     legServoAnglesDeg: [60, 58, 62, 61, 59, 60],
-    groundStabilityIndex: 68,
+    groundStabilityIndex: 78,
     seismicAcoustic: {
-      vibrationMmS: 2.8,
+      vibrationMmS: 2.4,
       acousticDecibels: 54,
       tapEchoConfidence: 89,
       tremorDetected: true
     },
-    soilMoisturePercent: 62,
+    soilMoisturePercent: 52,
     geofenceLaser: {
       connectedToHexaId: 'HEXA-04',
-      laserRangeM: 2050,
+      laserRangeM: 85,
       perimeterLock: true,
       activeLaserSignal: true
     },
-    stepCycleCount: 7120,
+    stepCycleCount: 2120,
     battery: {
-      level: 74,
-      voltage: 24.2,
-      temperature: 34.6,
-      cellVoltages: [4.03, 4.04, 4.03, 4.04, 4.03, 4.03],
+      level: 80,
+      voltage: 24.5,
+      temperature: 32.6,
+      cellVoltages: [4.08, 4.09, 4.08, 4.09, 4.08, 4.08],
       capacityMah: 12000,
-      cyclesCount: 35,
+      cyclesCount: 26,
       isLow: false
     },
     link: {
-      rssi: -70,
-      snr: 8.9,
-      packetLoss: 0.4,
+      rssi: -62,
+      snr: 10.9,
+      packetLoss: 0.1,
       frequencyMhz: 868.5,
       txPowerDbm: 24,
-      meshHopCount: 1,
+      meshHopCount: 0,
       status: 'OPTIMAL'
     },
     payload: {
@@ -733,39 +738,39 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'SEISMIC-LISTENER-4',
     role: 'SEISMIC_LISTENER',
     status: 'ANCHORED',
-    perimeterVertexName: 'North-East Peak Node',
-    position: { lat: 28.6300, lng: 77.2290, altitude: 255, terrainSlopeDeg: 18 },
-    heading: 220,
-    crawlSpeed: 0.4,
+    perimeterVertexName: 'South Loading Dock Anchor',
+    position: { lat: 28.61325, lng: 77.20900, altitude: 3, terrainSlopeDeg: 4 },
+    heading: 0,
+    crawlSpeed: 0.3,
     gaitMode: 'ANCHOR_LOCK',
     legServoAnglesDeg: [48, 48, 49, 47, 48, 48],
-    groundStabilityIndex: 91,
+    groundStabilityIndex: 94,
     seismicAcoustic: {
-      vibrationMmS: 0.8,
+      vibrationMmS: 0.6,
       acousticDecibels: 42,
       tapEchoConfidence: 74,
       tremorDetected: false
     },
-    soilMoisturePercent: 41,
+    soilMoisturePercent: 35,
     geofenceLaser: {
       connectedToHexaId: 'HEXA-05',
-      laserRangeM: 4100,
+      laserRangeM: 80,
       perimeterLock: true,
       activeLaserSignal: true
     },
-    stepCycleCount: 3980,
+    stepCycleCount: 1650,
     battery: {
-      level: 89,
-      voltage: 24.9,
+      level: 90,
+      voltage: 25.1,
       temperature: 29.0,
-      cellVoltages: [4.15, 4.15, 4.14, 4.15, 4.15, 4.14],
+      cellVoltages: [4.18, 4.19, 4.18, 4.18, 4.19, 4.18],
       capacityMah: 12000,
-      cyclesCount: 18,
+      cyclesCount: 16,
       isLow: false
     },
     link: {
       rssi: -56,
-      snr: 13.9,
+      snr: 13.8,
       packetLoss: 0.0,
       frequencyMhz: 868.1,
       txPowerDbm: 24,
@@ -773,8 +778,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
       status: 'OPTIMAL'
     },
     payload: {
-      type: 'TRIAXIAL_BOREHOLE_GEOPHONE',
-      status: 'ANCHOR_DEPLOYED',
+      type: 'HIGH_SENSITIVITY_GEOPHONE_ARRAY',
+      status: 'MONITORING_TAP_CODES',
       weightKg: 4.1
     },
     sensors: {
@@ -785,52 +790,52 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
   },
   {
     id: 'HEXA-05',
-    callsign: 'SLOPE-GUARD-5',
-    role: 'PERIMETER_ANCHOR',
-    status: 'PATROLLING_PERIMETER',
-    perimeterVertexName: 'North-West Escarpment Node',
-    position: { lat: 28.6310, lng: 77.1880, altitude: 238, terrainSlopeDeg: 28 },
-    heading: 175,
-    crawlSpeed: 1.0,
-    gaitMode: 'TRIPOD_FAST',
-    legServoAnglesDeg: [50, 52, 49, 51, 50, 51],
-    groundStabilityIndex: 78,
+    callsign: 'PERIMETER-GUARD-5',
+    role: 'GEOFENCE_BEACON',
+    status: 'ANCHORED',
+    perimeterVertexName: 'South-West Staging Anchor',
+    position: { lat: 28.61335, lng: 77.20835, altitude: 4, terrainSlopeDeg: 8 },
+    heading: 45,
+    crawlSpeed: 0.4,
+    gaitMode: 'ANCHOR_LOCK',
+    legServoAnglesDeg: [46, 45, 47, 46, 45, 46],
+    groundStabilityIndex: 92,
     seismicAcoustic: {
-      vibrationMmS: 1.9,
-      acousticDecibels: 38,
+      vibrationMmS: 0.5,
+      acousticDecibels: 30,
       tapEchoConfidence: 15,
       tremorDetected: false
     },
-    soilMoisturePercent: 55,
+    soilMoisturePercent: 38,
     geofenceLaser: {
       connectedToHexaId: 'HEXA-06',
-      laserRangeM: 1980,
+      laserRangeM: 115,
       perimeterLock: true,
       activeLaserSignal: true
     },
-    stepCycleCount: 6340,
+    stepCycleCount: 1530,
     battery: {
-      level: 81,
-      voltage: 24.5,
-      temperature: 31.8,
-      cellVoltages: [4.08, 4.09, 4.08, 4.09, 4.08, 4.08],
+      level: 88,
+      voltage: 24.9,
+      temperature: 29.8,
+      cellVoltages: [4.15, 4.16, 4.15, 4.15, 4.16, 4.15],
       capacityMah: 12000,
-      cyclesCount: 26,
+      cyclesCount: 19,
       isLow: false
     },
     link: {
-      rssi: -65,
-      snr: 10.4,
-      packetLoss: 0.1,
+      rssi: -57,
+      snr: 13.2,
+      packetLoss: 0.0,
       frequencyMhz: 868.3,
       txPowerDbm: 24,
       meshHopCount: 0,
       status: 'OPTIMAL'
     },
     payload: {
-      type: 'GROUND_STABILIZATION_GROUT_INJECTOR',
+      type: 'OPTICAL_LASER_GEOFENCE_EMITTER',
       status: 'ARMED',
-      weightKg: 3.2
+      weightKg: 2.8
     },
     sensors: {
       geophone: 'ONLINE',
@@ -840,52 +845,52 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
   },
   {
     id: 'HEXA-06',
-    callsign: 'PERIMETER-CLOSER-6',
-    role: 'GEOFENCE_BEACON',
-    status: 'ANCHORED',
-    perimeterVertexName: 'West Canyon Gate Node',
-    position: { lat: 28.6145, lng: 77.1860, altitude: 220, terrainSlopeDeg: 15 },
-    heading: 90,
-    crawlSpeed: 0.7,
-    gaitMode: 'ANCHOR_LOCK',
-    legServoAnglesDeg: [46, 45, 46, 46, 45, 46],
-    groundStabilityIndex: 96,
+    callsign: 'CAVERN-SCOUT-6',
+    role: 'RUBBLE_INFILTRATOR',
+    status: 'INFILTRATING_RUBBLE',
+    perimeterVertexName: 'North-West Column Collapse Anchor',
+    position: { lat: 28.61445, lng: 77.20835, altitude: 5, terrainSlopeDeg: 22 },
+    heading: 120,
+    crawlSpeed: 0.6,
+    gaitMode: 'WAVE_STABLE',
+    legServoAnglesDeg: [55, 54, 56, 55, 54, 55],
+    groundStabilityIndex: 82,
     seismicAcoustic: {
-      vibrationMmS: 0.5,
-      acousticDecibels: 26,
-      tapEchoConfidence: 8,
+      vibrationMmS: 1.8,
+      acousticDecibels: 48,
+      tapEchoConfidence: 68,
       tremorDetected: false
     },
-    soilMoisturePercent: 35,
+    soilMoisturePercent: 44,
     geofenceLaser: {
       connectedToHexaId: 'HEXA-01',
-      laserRangeM: 1920,
+      laserRangeM: 80,
       perimeterLock: true,
       activeLaserSignal: true
     },
-    stepCycleCount: 4890,
+    stepCycleCount: 1980,
     battery: {
-      level: 94,
-      voltage: 25.3,
-      temperature: 27.9,
-      cellVoltages: [4.21, 4.22, 4.21, 4.21, 4.22, 4.21],
+      level: 84,
+      voltage: 24.7,
+      temperature: 31.4,
+      cellVoltages: [4.11, 4.12, 4.11, 4.12, 4.11, 4.11],
       capacityMah: 12000,
-      cyclesCount: 11,
+      cyclesCount: 24,
       isLow: false
     },
     link: {
-      rssi: -55,
-      snr: 14.0,
-      packetLoss: 0.0,
-      frequencyMhz: 868.1,
+      rssi: -60,
+      snr: 12.0,
+      packetLoss: 0.1,
+      frequencyMhz: 868.5,
       txPowerDbm: 24,
       meshHopCount: 0,
       status: 'OPTIMAL'
     },
     payload: {
-      type: 'OPTICAL_LASER_GEOFENCE_EMITTER',
-      status: 'ANCHOR_DEPLOYED',
-      weightKg: 2.8
+      type: 'MICRO_RUBBLE_ENDOSCOPE_PROBE',
+      status: 'ARMED',
+      weightKg: 2.2
     },
     sensors: {
       geophone: 'ONLINE',
@@ -896,237 +901,337 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// 3. POST-EARTHQUAKE & LANDSLIDE CASUALTY TRIAGE REGISTRY
+// 3. EARTHQUAKE DISASTER CASUALTY & HAZARD TRIAGE EVENTS
 // ---------------------------------------------------------------------------
 export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
   {
-    id: 'CAS-EQ-01',
-    victimCallsign: 'SURVIVOR-ALPHA [Entrapped]',
-    location: { lat: 28.6152, lng: 77.2110, altitude: 230 },
-    sector: 'Sector 7-G (Collapsed Structural Slab - Interior)',
-    timestamp: Date.now() - 120000,
+    id: 'TRI-884A',
+    victimCallsign: 'SURVIVOR-ALPHA',
+    timestamp: Date.now() - 1000 * 60 * 4,
+    location: { lat: 28.61392, lng: 77.20905, altitude: 2, zone: 'Central Atrium Floor Void' },
+    sector: 'Sector 7-G Central Atrium',
     severity: 'CRITICAL',
     entrapmentType: 'COLLAPSED_CONCRETE_VOID',
     crushSyndromeRisk: 'HIGH',
     acousticEchoDetected: true,
     soilShearStressKPa: 142.5,
-    thermal: { bodyTemp: 34.2, ambientTemp: 14.1, differential: 20.1, thermalGradient: 4.8 },
-    vitals: { respirationRate: 11, estimatedMovementScore: 0.15 },
-    confidence: 96.4,
-    rescueStatus: 'DISPATCHED',
-    assignedDroneId: 'ANT-07',
+    thermal: {
+      bodyTemp: 37.1,
+      ambientTemp: 14.5,
+      differential: 22.6,
+      thermalGradient: 0.88
+    },
+    thermalSignatureC: 37.1,
+    heartRateBpm: 112,
+    respirationBpm: 24,
+    vitals: {
+      respirationRate: 24,
+      estimatedMovementScore: 42
+    },
+    confidenceScore: 0.96,
+    confidence: 0.96,
+    detectedByDroneId: 'ANT-03',
+    assignedDroneId: 'ANT-01',
+    rescueStatus: 'PENDING_EXTRACTION',
+    hazardContext: 'EARTHQUAKE_PANCAKE_COLLAPSE',
+    structuralIntegrityPct: 24,
+    airborneGasDetected: false,
+    tapFrequencyHz: 2.8,
+    trappedPersonsCount: 2,
     recommendedExtraction: 'HEXAPOD_RUBBLE_MICRO_INFILTRATION',
-    notes: 'Severe void entrapment beneath pre-stressed concrete slab. HEXA-03 acoustic geophone isolated rhythmic tapping signal at 2.8Hz.'
+    recommendedAction: 'Deploy hydraulic spreader squad via Central Atrium corridor. Thermal hot-spot confirmed alive.',
+    notes: 'FLIR radiometric imaging detected dual heat signatures under reinforced slab. 2.8Hz acoustic rhythmic tapping confirmed conscious victim.'
   },
   {
-    id: 'CAS-EQ-02',
-    victimCallsign: 'SURVIVOR-BRAVO [Slope Burial]',
-    location: { lat: 28.6185, lng: 77.2142, altitude: 248 },
-    sector: 'Sector 4-B (Active Landslide Slip Scarp - East Perimeter)',
-    timestamp: Date.now() - 340000,
+    id: 'TRI-902B',
+    victimCallsign: 'SURVIVOR-BRAVO',
+    timestamp: Date.now() - 1000 * 60 * 12,
+    location: { lat: 28.61430, lng: 77.20875, altitude: 3, zone: 'North Wing Stairwell Cavity' },
+    sector: 'Sector 7-G North Wing',
     severity: 'URGENT',
-    entrapmentType: 'MUD_SLOPE_BURIAL',
+    entrapmentType: 'BASEMENT_CAVE_IN',
     crushSyndromeRisk: 'MODERATE',
     acousticEchoDetected: true,
     soilShearStressKPa: 98.2,
-    thermal: { bodyTemp: 36.1, ambientTemp: 15.0, differential: 21.1, thermalGradient: 3.2 },
-    vitals: { respirationRate: 18, estimatedMovementScore: 0.65 },
-    confidence: 91.2,
-    rescueStatus: 'PENDING',
-    assignedDroneId: null,
+    thermal: {
+      bodyTemp: 36.8,
+      ambientTemp: 15.2,
+      differential: 21.6,
+      thermalGradient: 0.74
+    },
+    thermalSignatureC: 36.8,
+    heartRateBpm: 94,
+    respirationBpm: 19,
+    vitals: {
+      respirationRate: 19,
+      estimatedMovementScore: 65
+    },
+    confidenceScore: 0.91,
+    confidence: 0.91,
+    detectedByDroneId: 'ANT-01',
+    assignedDroneId: 'ANT-04',
+    rescueStatus: 'MEDIC_DISPATCHED',
+    hazardContext: 'STAIRWELL_SHEAR_FAILURE',
+    structuralIntegrityPct: 42,
+    airborneGasDetected: false,
+    tapFrequencyHz: 1.5,
+    trappedPersonsCount: 1,
     recommendedExtraction: 'UAV_LIFELINE_AIRDROP',
-    notes: 'Debris toe slide burial. Two subjects sheltered inside vehicle void. HEXA-02 maintaining stability perimeter anchor.'
+    recommendedAction: 'First aid drone ANT-04 deployed with automated oxygen mask and radio beacon.',
+    notes: 'Stairwell concrete debris wedge. Survivor responsive, mild hypothermia onset. Medical supply payload in transit.'
   },
   {
-    id: 'CAS-EQ-03',
-    victimCallsign: 'SURVIVOR-CHARLIE [Basement Void]',
-    location: { lat: 28.6102, lng: 77.2038, altitude: 212 },
-    sector: 'Sector 9-A (Pancake Collapse Void - Interior Core)',
-    timestamp: Date.now() - 890000,
-    severity: 'STABLE',
-    entrapmentType: 'BASEMENT_CAVE_IN',
-    crushSyndromeRisk: 'LOW',
-    acousticEchoDetected: false,
-    soilShearStressKPa: 45.0,
-    thermal: { bodyTemp: 36.8, ambientTemp: 16.2, differential: 20.6, thermalGradient: 2.1 },
-    vitals: { respirationRate: 16, estimatedMovementScore: 0.90 },
-    confidence: 88.7,
-    rescueStatus: 'IN_TRANSIT',
-    assignedDroneId: 'ANT-01',
+    id: 'TRI-731C',
+    victimCallsign: 'SURVIVOR-CHARLIE',
+    timestamp: Date.now() - 1000 * 60 * 20,
+    location: { lat: 28.61350, lng: 77.20920, altitude: 1, zone: 'South Wing Basement Column Void' },
+    sector: 'Sector 7-G South Basement',
+    severity: 'CRITICAL',
+    entrapmentType: 'COLLAPSED_CONCRETE_VOID',
+    crushSyndromeRisk: 'HIGH',
+    acousticEchoDetected: true,
+    soilShearStressKPa: 186.0,
+    thermal: {
+      bodyTemp: 37.4,
+      ambientTemp: 13.8,
+      differential: 23.6,
+      thermalGradient: 0.92
+    },
+    thermalSignatureC: 37.4,
+    heartRateBpm: 128,
+    respirationBpm: 28,
+    vitals: {
+      respirationRate: 28,
+      estimatedMovementScore: 30
+    },
+    confidenceScore: 0.94,
+    confidence: 0.94,
+    detectedByDroneId: 'ANT-05',
+    assignedDroneId: 'ANT-05',
+    rescueStatus: 'PENDING_EXTRACTION',
+    hazardContext: 'EARTHQUAKE_BASEMENT_CRUSH',
+    structuralIntegrityPct: 18,
+    airborneGasDetected: true,
+    tapFrequencyHz: 3.2,
+    trappedPersonsCount: 3,
     recommendedExtraction: 'GROUND_USAR_TEAM',
-    notes: 'Micro-FLIR verified survivor in stable basement pocket. Oxygen line & beacon delivered by ANT-01.'
+    recommendedAction: 'Active methane gas line breach nearby. Hexapod HEXA-03 tasked for endoscopic pipe inspection.',
+    notes: 'Severe multi-column collapse. 3 persons trapped in basement storage cavity. VOC methane sensor triggered. Requires extraction team.'
   },
   {
-    id: 'CAS-EQ-04',
-    victimCallsign: 'SURVIVOR-DELTA [Extracted]',
-    location: { lat: 28.6190, lng: 77.2065, altitude: 224 },
-    sector: 'Sector 2-C (North Ravine Toe - North Boundary)',
-    timestamp: Date.now() - 1600000,
+    id: 'TRI-610D',
+    victimCallsign: 'SURVIVOR-DELTA',
+    timestamp: Date.now() - 1000 * 60 * 35,
+    location: { lat: 28.61385, lng: 77.20855, altitude: 4, zone: 'West Annex Rubble Ingress' },
+    sector: 'Sector 7-G West Annex',
     severity: 'STABLE',
     entrapmentType: 'TIMBER_DEBRIS_CANOPY',
     crushSyndromeRisk: 'LOW',
     acousticEchoDetected: false,
-    soilShearStressKPa: 32.0,
-    thermal: { bodyTemp: 37.0, ambientTemp: 16.5, differential: 20.5, thermalGradient: 1.8 },
-    vitals: { respirationRate: 15, estimatedMovementScore: 1.0 },
-    confidence: 99.1,
-    rescueStatus: 'RESCUED',
-    assignedDroneId: 'GROUND_USAR_ALPHA',
+    soilShearStressKPa: 45.0,
+    thermal: {
+      bodyTemp: 36.5,
+      ambientTemp: 16.0,
+      differential: 20.5,
+      thermalGradient: 0.62
+    },
+    thermalSignatureC: 36.5,
+    heartRateBpm: 82,
+    respirationBpm: 16,
+    vitals: {
+      respirationRate: 16,
+      estimatedMovementScore: 85
+    },
+    confidenceScore: 0.88,
+    confidence: 0.88,
+    detectedByDroneId: 'ANT-06',
+    assignedDroneId: 'ANT-06',
+    rescueStatus: 'IN_ASSESSMENT',
+    hazardContext: 'PERIMETER_WALL_DEBRIS',
+    structuralIntegrityPct: 58,
+    airborneGasDetected: false,
+    trappedPersonsCount: 1,
     recommendedExtraction: 'GROUND_USAR_TEAM',
-    notes: 'Extraction completed by USAR Team Bravo via HEXA-05 stabilized corridor.'
+    recommendedAction: 'Light drywall entrapment. Ground team with portable cutting torches can extract in under 10 mins.',
+    notes: 'Survivor conscious and communicating verbally through air vent. Minimal debris obstruction.'
   }
 ];
 
 // ---------------------------------------------------------------------------
-// 4. EXPANDED ACS PHEROMONE & SLOPE FAILURE RISK GRID (~140 km²)
+// 4. EARTHQUAKE DISASTER SYSTEM ALERTS
+// ---------------------------------------------------------------------------
+export const INITIAL_ALERTS: AlertEntry[] = [
+  {
+    id: 'ALT-EQ-01',
+    timestamp: Date.now() - 1000 * 60 * 2,
+    tier: 'TIER_1_CRITICAL',
+    hazardType: 'SEISMIC_AFTERSHOCK',
+    sourceDroneId: 'HEXA-03',
+    message: 'MAJOR EARTHQUAKE RECON: Sector 7-G structural integrity reduced to 24%. 2 victims identified in central void.',
+    location: { lat: 28.61392, lng: 77.20905 }
+  },
+  {
+    id: 'ALT-EQ-02',
+    timestamp: Date.now() - 1000 * 60 * 8,
+    tier: 'TIER_2_WARNING',
+    hazardType: 'GAS_LEAK',
+    sourceDroneId: 'HEXA-03',
+    message: 'South Wing gas line leak detected: VOC plume expanding NW. Airflow isolation activated.',
+    location: { lat: 28.61350, lng: 77.20920 }
+  },
+  {
+    id: 'ALT-EQ-03',
+    timestamp: Date.now() - 1000 * 60 * 15,
+    tier: 'TIER_3_INFO',
+    hazardType: 'GEOFENCE_BREACH',
+    sourceDroneId: 'HEXA-01',
+    message: '6-Node Optical Laser Geofence locked around building footprint. Perimeter barrier active.',
+    location: { lat: 28.61390, lng: 77.20900 }
+  }
+];
+
+export const INITIAL_MISSION_STATS: SwarmMissionStats = {
+  missionId: 'MSN-EQ-7G',
+  missionName: 'OPERATION SEISMIC RECON 7',
+  missionStartTime: Date.now() - 1000 * 60 * 72,
+  missionElapsedSeconds: 4320,
+  activeDronesCount: 10,
+  activeHexapodsCount: 6,
+  interiorDronesCount: 6,
+  perimeterDronesCount: 4,
+  totalAreaSqKm: 0.015, // 120m x 120m building complex
+  searchedPercentage: 74.8,
+  meshHealthScore: 98.6,
+  geofenceIntegrityScore: 99.4,
+  seismicRiskScore: 68.4,
+  triageCount: {
+    total: 4,
+    critical: 2,
+    urgent: 1,
+    stable: 1,
+    rescued: 0
+  }
+};
+
+// ---------------------------------------------------------------------------
+// 5. BUILDING-SCALE 8x8 PHEROMONE GRID (120m x 120m Footprint)
 // ---------------------------------------------------------------------------
 export function generateInitialPheromoneGrid(): PheromoneCell[] {
   const cells: PheromoneCell[] = [];
-  const minLat = 28.5950;
-  const maxLat = 28.6330;
-  const minLng = 77.1850;
-  const maxLng = 77.2350;
-  const stepLat = 0.0035;
-  const stepLng = 0.0045;
+  const rows = 8;
+  const cols = 8;
+  const startLat = 28.61320;
+  const startLng = 28.61320;
+  const southBound = 28.61320;
+  const westBound = 77.20820;
+  const stepLat = 0.00020; // ~22 meters per cell
+  const stepLng = 0.00022; // ~22 meters per cell
 
-  let idCount = 0;
-  for (let lat = minLat; lat < maxLat; lat += stepLat) {
-    for (let lng = minLng; lng < maxLng; lng += stepLng) {
-      idCount++;
-      const distFromCenter = Math.sqrt(Math.pow(lat - BASE_CENTER.lat, 2) + Math.pow(lng - BASE_CENTER.lng, 2));
-      const isNearCenter = distFromCenter < 0.012;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cellId = `CELL-${r}-${c}`;
+      const south = southBound + r * stepLat;
+      const north = south + stepLat;
+      const west = westBound + c * stepLng;
+      const east = west + stepLng;
 
-      // Slope failure risk along outer north/east ridges
-      const slopeRiskLevel = (lat > 28.618 && lng > 77.215) ? 0.85 : (lat < 28.602 && lng < 77.195) ? 0.65 : 0.15;
+      const distFromCenter = Math.hypot(r - 3.5, c - 3.5);
+      const isCenter = distFromCenter < 2.0;
 
       cells.push({
-        cellId: `CELL-${idCount}`,
-        gridX: Math.round((lng - minLng) / stepLng),
-        gridY: Math.round((lat - minLat) / stepLat),
-        bounds: {
-          south: lat,
-          north: lat + stepLat,
-          west: lng,
-          east: lng + stepLng
-        },
-        coverageScore: isNearCenter ? Math.min(1.0, 0.4 + Math.random() * 0.6) : (Math.random() > 0.5 ? Math.random() * 0.35 : 0.0),
-        recruitmentLevel: (lat > 28.612 && lng > 77.208 && Math.random() > 0.7) ? 0.8 : 0.05,
-        repulsionLevel: slopeRiskLevel > 0.8 ? 0.75 : 0.0,
-        slopeRiskLevel,
-        lastUpdated: Date.now()
+        cellId,
+        bounds: { north, south, east, west },
+        coverageScore: isCenter ? 0.92 : Math.max(0.2, 0.8 - distFromCenter * 0.15),
+        recruitmentLevel: (r === 4 && c === 4) ? 0.95 : (r === 2 && c === 5) ? 0.75 : 0.05,
+        repulsionLevel: 0.0,
+        slopeRiskLevel: (r === 1 && c === 2) ? 0.85 : 0.1,
+        lastVisitedTimestamp: Date.now() - Math.random() * 1000 * 60 * 5,
+        evaporationHalfLifeSec: 120
       });
     }
   }
   return cells;
 }
 
-// ---------------------------------------------------------------------------
-// 5. POST-EARTHQUAKE & LANDSLIDE INCIDENT ALERTS
-// ---------------------------------------------------------------------------
-export const INITIAL_ALERTS: AlertEntry[] = [
+export const INITIAL_REASONING_LOGS: ReasoningTraceLog[] = [
   {
-    id: 'ALT-EQ-1092',
-    timestamp: Date.now() - 45000,
-    tier: 'TIER_1_CRITICAL',
-    hazardType: 'RUBBLE_VOID_ENTRAPMENT',
-    sourceDroneId: 'HEXA-03',
-    message: 'Acoustic Geophone detected rhythmic tapping echo (2.8Hz) beneath Sector 7-G concrete slab.',
-    acknowledged: false
-  },
-  {
-    id: 'ALT-EQ-1091',
-    timestamp: Date.now() - 180000,
-    tier: 'TIER_2_WARNING',
-    hazardType: 'LANDSLIDE_SLIP',
-    sourceDroneId: 'HEXA-02',
-    message: 'Slope shear stress spiked to 98.2 kPa in Sector 4-B. Hexapod laser perimeter adjusted +15m outward.',
-    acknowledged: false
-  },
-  {
-    id: 'ALT-EQ-1090',
-    timestamp: Date.now() - 320000,
-    tier: 'TIER_3_INFO',
-    hazardType: 'GEOFENCE_BREACH',
-    sourceDroneId: 'HEXA-01',
-    message: 'Hexapod laser perimeter geofence locked across 6 ground boundary nodes (~142 km² envelope).',
-    acknowledged: true
-  }
-];
-
-// ---------------------------------------------------------------------------
-// 6. DECENTRALIZED AI SEISMIC & MULTI-AGENT INFERENCE TRACES
-// ---------------------------------------------------------------------------
-export const INITIAL_REASONING_TRACES: ReasoningTraceLog[] = [
-  {
-    id: 'TRACE-EQ-894',
-    timestamp: '14:02:11',
+    id: 'LOG-EQ-001',
+    timestamp: '16:12:04',
     severity: 'CRITICAL',
     category: 'ACOUSTIC_TAP_CORRELATION',
-    title: 'ACOUSTIC GEOPHONE + FLIR RUBBLE VOID CORRELATION',
-    droneId: 'HEXA-03',
-    inferencePath: [
-      'HEXA-03 triaxial geophone anchored on East Fault Scarp recorded 2.8Hz acoustic tap cadence (SNR: 18.4dB).',
-      'Airborne ANT-01 FLIR radiometric camera confirmed +20.1°C differential thermal plume rising through slab fissure.',
-      'Edge YOLOv9 USAR model correlated survivor trapped in 1.4m concrete void pocket.',
-      'Decentralized air-ground response triggered: ANT-07 vectorized for rapid trauma kit delivery.'
-    ],
-    autonomousDecision: 'Autonomous Hexapod Infiltration: HEXA-03 deployed micro-endoscope probe; ANT-07 payload armed.',
-    operatorRequired: false
-  },
-  {
-    id: 'TRACE-EQ-893',
-    timestamp: '13:59:44',
-    severity: 'HIGH',
-    category: 'SLOPE_STABILITY_FAILURE',
-    title: 'EXPANDED LANDSLIDE SCARP SHEAR FAILURE EARLY WARNING',
-    droneId: 'HEXA-02',
-    inferencePath: [
-      'Soil moisture sensor registered 48% saturation following seismic water main rupture.',
-      'LiDAR point-cloud differential detected 4.2cm micro-displacement along slip scarp.',
-      'Factor of Safety (FoS) dropped from 1.35 to 1.08.',
-      'Autonomous geofence realignment: HEXA-02 and HEXA-03 laser perimeter shifted to establish 120m exclusion buffer.'
-    ],
-    autonomousDecision: 'Hexapod Boundary Expansion: Re-anchored perimeter laser line to prevent USAR team entry into active slip zone.',
-    operatorRequired: false
-  },
-  {
-    id: 'TRACE-EQ-892',
-    timestamp: '13:52:10',
-    severity: 'MEDIUM',
-    category: 'SWARM_AIR_GROUND_COORDINATION',
-    title: 'HETEROGENEOUS AIR-GROUND STIGMERGIC ROUTING',
+    title: 'Multi-Modal Void Entrapment & 2.8Hz Tap Resonance Confirmation',
     droneId: 'ANT-03',
     inferencePath: [
-      'Ground Hexapods HEXA-04 and HEXA-05 reported RF shadowing across deep north canyon.',
-      'Airborne UAV ANT-03 autonomously climbed to 120m AGL above the central ridgeline.',
-      'Established high-throughput LoRa/WiFi mesh bridge between all 10 UAVs and 6 Hexapods.'
+      'FLIR Radiometric sensor detected localized +22.6°C thermal differential under 40cm collapsed pre-stressed concrete slab.',
+      'Hexapod HEXA-03 triaxial geophone registered persistent 2.8Hz rhythmic cadence (Morse tap pattern confidence 94.2%).',
+      'LiDAR structural mesh reconstructed 1.8m x 2.4m survivable void pocket in Sector 7-G Central Atrium.',
+      'Fused Edge-AI Bayesian classifier validated live human presence with 96.2% confidence.'
     ],
-    autonomousDecision: 'Elevated Relay Orbit: Maintained zero-packet-loss air-ground telemetry trunk.',
+    autonomousDecision: 'Elevated triage status of TRI-884A to CRITICAL. Reassigned nearest Air-Ant UAV-01 for automated lifeline drop and alerted extraction squad.',
+    operatorRequired: true
+  },
+  {
+    id: 'LOG-EQ-002',
+    timestamp: '16:10:48',
+    severity: 'HIGH',
+    category: 'SEISMIC_TREMOR_ANALYSIS',
+    title: 'Aftershock S-Wave Attenuation & Dynamic Geofence Recalibration',
+    droneId: 'HEXA-05',
+    inferencePath: [
+      'Subsurface seismic accelerometer registered 0.48g peak ground acceleration (PGA) from M7.2 aftershock wave packet.',
+      'Soil shear stress at South Wing foundation spiked from 92 kPa to 186 kPa, indicating incipient slope failure.',
+      'Cross-analyzed laser geofence perimeter links between HEXA-05 and HEXA-06: optical beam deflected by 12mm.',
+      'Edge safety arbiter predicted 68% probability of secondary wall collapse along perimeter vertex 4.'
+    ],
+    autonomousDecision: 'Autonomous swarm perimeter retracted 8 meters inward. Shifted 4 perimeter surveillance UAVs to high-altitude 32m standoff orbit.',
+    operatorRequired: false
+  },
+  {
+    id: 'LOG-EQ-003',
+    timestamp: '16:08:15',
+    severity: 'CRITICAL',
+    category: 'SWARM_AIR_GROUND_COORDINATION',
+    title: 'Air-Ground Cross-Cueing: Aerial Thermal Anomaly to Ground Hexapod Infiltration',
+    droneId: 'ANT-05',
+    inferencePath: [
+      'UAV ANT-05 aerial thermal camera isolated 37.4°C hot spot beneath dense South Basement rubble canopy.',
+      'Aero-photo photogrammetry determined surface rubble too dense for direct aerial supply payload drop.',
+      'Emitted high-priority ACS pheromone recruitment signal (cell recruitment level set to 0.95).',
+      'Ground hexapod HEXA-03 received coordinates, switched gait from TRIPOD_FAST to WAVE_STABLE for rubble crawling.'
+    ],
+    autonomousDecision: 'Tasked HEXA-03 for micro-rubble void endoscopic camera probe penetration into basement cavity for casualty TRI-731C.',
+    operatorRequired: true
+  },
+  {
+    id: 'LOG-EQ-004',
+    timestamp: '16:05:32',
+    severity: 'MEDIUM',
+    category: 'HEXAPOD_GEOFENCE_REANCHOR',
+    title: 'Optical Laser Geofence Line-of-Sight Re-Establishment',
+    droneId: 'HEXA-01',
+    inferencePath: [
+      'Optical laser receiver lost line-of-sight signal with node HEXA-02 due to collapsing masonry debris curtain.',
+      'Mesh RSSI dropped from -56dBm to -78dBm along north quadrant corridor.',
+      'Calculated alternate line-of-sight path requiring 1.4m westward crawl to stable granite bedrock anchor.',
+      'Leg servo torque telemetry confirmed 96% ground shear stability index at new waypoint.'
+    ],
+    autonomousDecision: 'Autonomous re-anchoring completed. Re-established 85m optical laser geofence barrier with 100% boundary integrity lock.',
+    operatorRequired: false
+  },
+  {
+    id: 'LOG-EQ-005',
+    timestamp: '16:01:19',
+    severity: 'INFO',
+    category: 'SLOPE_STABILITY_FAILURE',
+    title: 'Stigmergic Pheromone Field Evaporation & Coverage Optimization',
+    droneId: 'ANT-02',
+    inferencePath: [
+      'Grid cell coverage score in Sector 7-G North-East corner exceeded 0.88 search threshold.',
+      'Pheromone evaporation engine decayed local recruitment pheromone (half-life 120s).',
+      'Negative chemotaxis repulsion vector calculated away from over-surveyed roof quadrants.',
+      'Gradient ascent redirected ANT-02 and ANT-07 toward unsearched East Void sector.'
+    ],
+    autonomousDecision: 'Executing anti-clustering dispersion. Increased building coverage by +12.4% while maintaining zero drone collision risk.',
     operatorRequired: false
   }
 ];
-
-// ---------------------------------------------------------------------------
-// 7. EXPANDED COMPREHENSIVE MISSION STATS (~140 km²)
-// ---------------------------------------------------------------------------
-export const INITIAL_MISSION_STATS: SwarmMissionStats = {
-  missionId: 'OP-SEISMIC-SHIELD-EXPANDED',
-  missionName: 'Regional Post-Earthquake Air-Ground USAR Operation',
-  missionStartTime: Date.now() - 2535000,
-  totalAreaSqKm: 142.8,
-  searchedPercentage: 89.2,
-  activeDronesCount: 10,
-  activeHexapodsCount: 6,
-  interiorDronesCount: 6,
-  perimeterDronesCount: 4,
-  geofenceIntegrityScore: 99.2,
-  seismicRiskScore: 74.8,
-  meshHealthScore: 99.4,
-  triageCount: {
-    total: 4,
-    critical: 1,
-    urgent: 1,
-    stable: 2,
-    rescued: 1
-  }
-};

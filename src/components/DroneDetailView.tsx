@@ -52,7 +52,7 @@ export const DroneDetailView: React.FC<DroneDetailViewProps> = ({
   const activeHexapod = hexapods.find(h => h.id === selectedHexapodId) || hexapods[0] || null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-96px)] overflow-hidden">
+    <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-2 h-[calc(100vh-74px)] overflow-hidden">
       
       {/* 1. Left Column: Fleet Unit Selector (10 UAVs + 6 Hexapods) */}
       <div className="glass-panel rounded-2xl border border-white/10 shadow-xl p-3 flex flex-col gap-2 overflow-hidden">

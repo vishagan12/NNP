@@ -8,7 +8,7 @@ import { DroneDetailView } from './components/DroneDetailView';
 import { SwarmMetricsView } from './components/SwarmMetricsView';
 import { MissionPlaybackView } from './components/MissionPlaybackView';
 import { telemetryEngine } from './services/telemetryEngine';
-import { INITIAL_REASONING_TRACES } from './data/mockData';
+import { INITIAL_REASONING_LOGS } from './data/mockData';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -22,11 +22,12 @@ export function App() {
   const [missionStats, setMissionStats] = useState(() => telemetryEngine.getMissionStats());
   const [missionMode, setMissionMode] = useState<'MOCK_SIMULATION' | 'LIVE_HARDWARE'>(() => telemetryEngine.getMode());
 
-  const [selectedDroneId, setSelectedDroneId] = useState<string | null>('ANT-01');
-  const [selectedHexapodId, setSelectedHexapodId] = useState<string | null>('HEXA-01');
-  const [selectedTriageId, setSelectedTriageId] = useState<string | null>('CAS-EQ-01');
+  // Default to null so map starts in full overview without auto-zooming into any unit
+  const [selectedDroneId, setSelectedDroneId] = useState<string | null>(null);
+  const [selectedHexapodId, setSelectedHexapodId] = useState<string | null>(null);
+  const [selectedTriageId, setSelectedTriageId] = useState<string | null>(null);
 
-  // Subscribe to real-time 500ms multi-agent physics & telemetry ticks
+  // Subscribe to real-time telemetry ticks
   useEffect(() => {
     const unsubscribe = telemetryEngine.subscribe(() => {
       setDrones([...telemetryEngine.getDrones()]);
@@ -59,29 +60,38 @@ export function App() {
     telemetryEngine.setMode(mode);
   };
 
+  // Focus drone on map when clicked in scrolling ticker or on map
   const handleSelectDrone = (droneId: string) => {
     setSelectedDroneId(droneId);
-    setActiveTab('drone-detail');
+    setSelectedHexapodId(null);
   };
 
+  // Focus hexapod on map when clicked in scrolling ticker or on map
   const handleSelectHexapod = (hexapodId: string) => {
     setSelectedHexapodId(hexapodId);
-    setActiveTab('drone-detail');
+    setSelectedDroneId(null);
+  };
+
+  const handleResetFocus = () => {
+    setSelectedDroneId(null);
+    setSelectedHexapodId(null);
   };
 
   const handleSelectTriage = (triage: typeof triageEvents[0]) => {
     setSelectedTriageId(triage.id);
-    setActiveTab('triage-list');
   };
 
   return (
     <div className="min-h-screen bg-[#08090d] font-sans text-slate-100 flex flex-col antialiased select-none">
       {/* Top Tactical Command Header */}
       <Header
-        activeTab={activeTab}
-        droneCount={drones.length}
-        hexapodCount={hexapods.length}
-        criticalPobCount={missionStats.triageCount.critical}
+        missionId="OP-SEISMIC-RECON-7"
+        activeDronesCount={drones.length}
+        activeHexapodsCount={hexapods.length}
+        interiorDronesCount={missionStats.interiorDronesCount}
+        perimeterDronesCount={missionStats.perimeterDronesCount}
+        totalAreaSqKm={missionStats.totalAreaSqKm}
+        searchedPercentage={missionStats.searchedPercentage}
         meshHealthScore={missionStats.meshHealthScore}
         geofenceIntegrityScore={missionStats.geofenceIntegrityScore}
         missionMode={missionMode}
@@ -89,7 +99,7 @@ export function App() {
       />
 
       {/* Main Viewport Container */}
-      <div className="flex flex-1 pt-16 h-screen overflow-hidden">
+      <div className="flex flex-1 pt-[58px] h-screen overflow-hidden">
         {/* Left Navigation Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -102,7 +112,7 @@ export function App() {
         />
 
         {/* Dynamic Center Canvas View */}
-        <main className="flex-1 ml-64 p-4 min-h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] bg-[#08090d] overflow-hidden">
+        <main className="flex-1 ml-[220px] p-2 min-h-[calc(100vh-58px)] max-h-[calc(100vh-58px)] bg-[#060810] overflow-hidden">
           {activeTab === 'dashboard' && (
             <DashboardView
               drones={drones}
@@ -114,6 +124,7 @@ export function App() {
               onSelectDrone={handleSelectDrone}
               selectedHexapodId={selectedHexapodId}
               onSelectHexapod={handleSelectHexapod}
+              onResetFocus={handleResetFocus}
               selectedTriageId={selectedTriageId}
               onSelectTriage={handleSelectTriage}
               onAcknowledgeAlert={handleAcknowledgeAlert}
@@ -126,6 +137,7 @@ export function App() {
             <TriageListView
               victims={triageEvents}
               onDispatchMedicalDrone={handleDispatchMedicalDrone}
+              onDispatchHexapodInfiltration={handleDispatchHexapodInfiltration}
             />
           )}
 
@@ -133,9 +145,9 @@ export function App() {
             <DroneDetailView
               drones={drones}
               hexapods={hexapods}
-              selectedDroneId={selectedDroneId}
+              selectedDroneId={selectedDroneId || 'ANT-01'}
               onSelectDrone={setSelectedDroneId}
-              selectedHexapodId={selectedHexapodId}
+              selectedHexapodId={selectedHexapodId || 'HEXA-01'}
               onSelectHexapod={setSelectedHexapodId}
             />
           )}
@@ -150,7 +162,7 @@ export function App() {
           )}
 
           {activeTab === 'reason-trace' && (
-            <ReasonTraceView traces={INITIAL_REASONING_TRACES} />
+            <ReasonTraceView traces={INITIAL_REASONING_LOGS as any} />
           )}
 
           {activeTab === 'mission-playback' && (

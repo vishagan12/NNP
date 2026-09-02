@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MapContainer, 
   TileLayer, 
@@ -7,30 +7,16 @@ import {
   Rectangle, 
   Polygon, 
   Polyline, 
-  ZoomControl 
+  ZoomControl,
+  useMap,
+  useMapEvents
 } from 'react-leaflet';
 import L from 'leaflet';
 import { DroneTelemetry, HexapodTelemetry, TriageEvent, PheromoneCell } from '../types';
 import { 
-  Layers, 
   Compass, 
-  MapPin, 
-  Shield, 
-  Radio, 
-  Heart, 
-  Navigation, 
-  Activity, 
-  Gauge, 
-  Maximize2,
-  Minimize2,
-  CheckCircle2,
-  Send,
-  Sparkles,
-  Mountain,
-  AlertTriangle,
-  Zap,
-  Target,
-  Eye
+  ZoomOut,
+  Map
 } from 'lucide-react';
 
 interface TacticalMapProps {
@@ -42,14 +28,41 @@ interface TacticalMapProps {
   onSelectDrone: (droneId: string) => void;
   selectedHexapodId?: string | null;
   onSelectHexapod?: (hexapodId: string) => void;
+  onResetFocus?: () => void;
   selectedTriageId: string | null;
   onSelectTriage: (triage: TriageEvent) => void;
   onDispatchMedicalDrone?: (victimId: string) => void;
   onDispatchHexapodInfiltration?: (victimId: string, hexapodId: string) => void;
 }
 
-// Map Tile Layers
+// ---------------------------------------------------------------------------
+// Map Layer Configs — Google Maps Satellite + Hybrid + ESRI + CartoDB Dark
+// ---------------------------------------------------------------------------
 const MAP_LAYERS = {
+  GOOGLE_SATELLITE: {
+    id: 'GOOGLE_SATELLITE',
+    name: 'Google Satellite',
+    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+    maxZoom: 22,
+    subdomains: [],
+    attribution: '&copy; Google Maps'
+  },
+  GOOGLE_HYBRID: {
+    id: 'GOOGLE_HYBRID',
+    name: 'Google Hybrid',
+    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    maxZoom: 22,
+    subdomains: [],
+    attribution: '&copy; Google Maps'
+  },
+  ESRI_SATELLITE: {
+    id: 'ESRI_SATELLITE',
+    name: 'ESRI Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    maxZoom: 22,
+    subdomains: [],
+    attribution: '&copy; Esri'
+  },
   CARTODB_DARK: {
     id: 'CARTODB_DARK',
     name: 'Tactical Dark',
@@ -57,149 +70,148 @@ const MAP_LAYERS = {
     subdomains: 'abcd',
     maxZoom: 20,
     attribution: '&copy; CartoDB'
-  },
-  ESRI_SATELLITE: {
-    id: 'ESRI_SATELLITE',
-    name: 'Satellite Photoreal',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    subdomains: ['server'],
-    maxZoom: 19,
-    attribution: '&copy; Esri World Imagery'
-  },
-  CARTODB_VOYAGER: {
-    id: 'CARTODB_VOYAGER',
-    name: 'High-Contrast Topo',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    subdomains: 'abcd',
-    maxZoom: 19,
-    attribution: '&copy; CartoDB Voyager'
   }
 };
 
-// 1. Realistic Quadcopter Marker with Zone Badging (Interior vs Perimeter)
-function createRealisticDroneIcon(drone: DroneTelemetry, isSelected: boolean) {
+type LayerKey = keyof typeof MAP_LAYERS;
+
+// ---------------------------------------------------------------------------
+// 1. Drone Icon — Quadcopter with heading vector
+// ---------------------------------------------------------------------------
+function createDroneIcon(drone: DroneTelemetry, isSelected: boolean) {
   const isEngaged = drone.status === 'ENGAGED';
   const isLowBatt = drone.battery.level < 25;
-  const isPerimeter = drone.zoneAssignment === 'PERIMETER_RING';
-  
-  const primaryColor = isEngaged ? '#ff4b1f' : isLowBatt ? '#f59e0b' : isPerimeter ? '#a855f7' : '#ff6b2c';
+  const isPerim   = drone.zoneAssignment === 'PERIMETER_RING';
+
+  const color = isEngaged ? '#ef4444'
+    : isLowBatt           ? '#f59e0b'
+    : isPerim             ? '#a855f7'
+    :                       '#ff6b2c';
+
+  const size = isSelected ? 48 : 38;
+  const half = size / 2;
 
   const html = `
-    <div class="relative flex items-center justify-center cursor-pointer select-none" style="width: 76px; height: 76px;">
+    <div style="width:${size}px;height:${size}px;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;">
       ${isSelected ? `
-        <div class="absolute inset-0 rounded-full border-2 border-[#ff6b2c] animate-ping opacity-60"></div>
-        <div class="absolute inset-[-4px] rounded-full border border-dashed border-orange-400 animate-spin" style="animation-duration: 8s;"></div>
+        <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid ${color};animation:ping 1.2s cubic-bezier(0,0,0.2,1) infinite;opacity:0.8;"></div>
+        <div style="position:absolute;inset:-8px;border-radius:50%;border:1px dashed ${color};animation:spin 4s linear infinite;opacity:0.6;"></div>
       ` : ''}
+      <div style="position:relative;width:${size*0.8}px;height:${size*0.8}px;display:flex;align-items:center;justify-content:center;transform:rotate(${drone.heading}deg);transition:transform 0.15s linear;">
+        <!-- Heading vector -->
+        <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color};"></div>
+        <!-- X Arms -->
+        <div style="position:absolute;width:${size*0.7}px;height:2px;background:rgba(20,28,45,0.95);border-radius:2px;transform:rotate(45deg);border:1px solid rgba(255,255,255,0.3);"></div>
+        <div style="position:absolute;width:${size*0.7}px;height:2px;background:rgba(20,28,45,0.95);border-radius:2px;transform:rotate(-45deg);border:1px solid rgba(255,255,255,0.3);"></div>
+        <!-- 4 Rotors -->
+        <div style="position:absolute;top:0;left:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;top:0;right:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;bottom:0;left:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
+        <!-- Center Avionics -->
+        <div style="width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,${color},#0d0f16);border:1px solid rgba(255,255,255,0.9);box-shadow:0 0 10px ${color};"></div>
+      </div>
+    </div>
+  `;
 
-      <div class="relative w-12 h-12 flex items-center justify-center transition-transform duration-300" style="transform: rotate(${drone.heading}deg);">
-        <!-- Heading Vector -->
-        <div class="absolute -top-3.5 w-1.5 h-3.5 rounded-full shadow-[0_0_10px_${primaryColor}]" style="background-color: ${primaryColor};"></div>
-        
-        <!-- Carbon Frame -->
-        <div class="absolute w-10 h-1.5 bg-[#171b26] rounded-full rotate-45 border border-white/25 shadow-md"></div>
-        <div class="absolute w-10 h-1.5 bg-[#171b26] rounded-full -rotate-45 border border-white/25 shadow-md"></div>
+  return L.divIcon({
+    html,
+    className: 'tactical-drone-marker',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  });
+}
 
-        <!-- 4 Spinning Rotor Discs -->
-        <div class="absolute top-0 left-0 w-3.5 h-3.5 rounded-full border border-[#ff6b2c] bg-[#ff6b2c]/30 spin-rotor shadow-[0_0_8px_#ff6b2c]"></div>
-        <div class="absolute top-0 right-0 w-3.5 h-3.5 rounded-full border border-[#ff6b2c] bg-[#ff6b2c]/30 spin-rotor shadow-[0_0_8px_#ff6b2c]"></div>
-        <div class="absolute bottom-0 left-0 w-3.5 h-3.5 rounded-full border border-[#ff6b2c] bg-[#ff6b2c]/30 spin-rotor shadow-[0_0_8px_#ff6b2c]"></div>
-        <div class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border border-[#ff6b2c] bg-[#ff6b2c]/30 spin-rotor shadow-[0_0_8px_#ff6b2c]"></div>
+// ---------------------------------------------------------------------------
+// 2. Hexapod Icon — 6-legged ground crawler
+// ---------------------------------------------------------------------------
+function createHexapodIcon(hexa: HexapodTelemetry, isSelected: boolean) {
+  const color = hexa.status === 'ANCHORED' ? '#10b981' : '#06b6d4';
+  const size = isSelected ? 42 : 36;
+  const half = size / 2;
 
-        <!-- Center Avionics Core -->
-        <div class="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-[0_0_14px_${primaryColor}]" style="background: radial-gradient(circle, ${primaryColor}, #0d0f16);">
-          <div class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></div>
+  const html = `
+    <div style="width:${size}px;height:${size}px;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      ${isSelected ? `<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid ${color};animation:ping 1.2s cubic-bezier(0,0,0.2,1) infinite;opacity:0.8;"></div>` : ''}
+      <div style="position:relative;width:${size*0.75}px;height:${size*0.75}px;display:flex;align-items:center;justify-content:center;transform:rotate(${hexa.heading}deg);transition:transform 0.15s linear;">
+        <div style="position:absolute;width:${size*0.75}px;height:1.5px;background:${color};border-radius:2px;transform:rotate(30deg);box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;width:${size*0.75}px;height:1.5px;background:${color};border-radius:2px;transform:rotate(90deg);box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;width:${size*0.75}px;height:1.5px;background:${color};border-radius:2px;transform:rotate(150deg);box-shadow:0 0 6px ${color};"></div>
+        <div style="width:12px;height:12px;border-radius:3px;background:rgba(6,30,46,0.95);border:1.5px solid ${color};box-shadow:0 0 8px ${color};display:flex;align-items:center;justify-content:center;">
+          <div style="width:4px;height:4px;border-radius:50%;background:${color};"></div>
         </div>
       </div>
-
-      <!-- Telemetry Live Pill -->
-      <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-md bg-[#0a0d14]/95 border shadow-2xl flex items-center gap-1 text-[8px] font-mono font-bold text-white backdrop-blur-md" style="border-color: ${primaryColor};">
-        <span style="color: ${primaryColor}; font-weight: 900;">${drone.id}</span>
-        <span class="text-slate-500">|</span>
-        <span class="${drone.battery.level < 30 ? 'text-red-400 font-extrabold' : 'text-emerald-400'}">${drone.battery.level}%</span>
-        <span class="text-slate-500">|</span>
-        <span class="${isPerimeter ? 'text-purple-300' : 'text-amber-300'}">${isPerimeter ? 'RING' : 'CORE'}</span>
-      </div>
     </div>
   `;
-
   return L.divIcon({
     html,
-    className: 'custom-drone-tactical-icon',
-    iconSize: [76, 76],
-    iconAnchor: [38, 38],
+    className: 'tactical-hexapod-marker',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 }
 
-// 2. Realistic 6-Legged Hexapod Ground Robot Marker with Boundary Anchor Tag
-function createRealisticHexapodIcon(hexa: HexapodTelemetry, isSelected: boolean) {
-  const isAnchored = hexa.status === 'ANCHORED';
-  const primaryColor = isAnchored ? '#10b981' : '#06b6d4';
+// ---------------------------------------------------------------------------
+// 3. Triage Icon
+// ---------------------------------------------------------------------------
+function createTriageIcon(triage: TriageEvent, isSelected: boolean) {
+  const rescued  = triage.rescueStatus === 'RESCUED';
+  const critical = triage.severity === 'CRITICAL';
+  const color    = rescued ? '#10b981' : critical ? '#ef4444' : '#f59e0b';
+  const size = isSelected ? 34 : 28;
+  const half = size / 2;
 
   const html = `
-    <div class="relative flex items-center justify-center cursor-pointer select-none" style="width: 72px; height: 72px;">
-      ${isSelected ? `
-        <div class="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-60"></div>
-      ` : ''}
-
-      <!-- Hexapod Mechanical Chassis -->
-      <div class="relative w-10 h-10 flex items-center justify-center transition-transform duration-300" style="transform: rotate(${hexa.heading}deg);">
-        <!-- 6 Articulated Spider Legs -->
-        <div class="absolute w-12 h-1 bg-cyan-600 rounded-full rotate-[30deg] shadow-[0_0_6px_#06b6d4]"></div>
-        <div class="absolute w-12 h-1 bg-cyan-600 rounded-full rotate-[90deg] shadow-[0_0_6px_#06b6d4]"></div>
-        <div class="absolute w-12 h-1 bg-cyan-600 rounded-full rotate-[150deg] shadow-[0_0_6px_#06b6d4]"></div>
-
-        <!-- Center Ruggedized Ground Hull -->
-        <div class="w-6 h-6 rounded-lg border-2 border-white flex items-center justify-center shadow-[0_0_12px_#06b6d4] bg-gradient-to-tr from-[#083344] to-[#0891b2]">
-          <span style="font-size: 10px;">🕷️</span>
-        </div>
-
-        <!-- Laser Geofence Beacon Anchor Point -->
-        <div class="absolute -top-1.5 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping shadow-[0_0_10px_#22d3ee]"></div>
-      </div>
-
-      <!-- Hexapod Telemetry Live Pill -->
-      <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.5 rounded-md bg-[#041d24]/95 border border-cyan-500/50 shadow-xl flex items-center gap-1 text-[8px] font-mono font-bold text-white backdrop-blur-md">
-        <span class="text-cyan-400 font-black">${hexa.id}</span>
-        <span class="text-slate-500">|</span>
-        <span class="text-emerald-400">${hexa.groundStabilityIndex}% STAB</span>
+    <div style="width:${size}px;height:${size}px;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      ${!rescued ? `<div style="position:absolute;inset:0;border-radius:50%;background:${color};opacity:0.4;animation:ping 1.2s cubic-bezier(0,0,0.2,1) infinite;"></div>` : ''}
+      <div style="width:${size*0.65}px;height:${size*0.65}px;border-radius:50%;background:#0d1017;border:2px solid ${color};box-shadow:0 0 14px ${color};display:flex;align-items:center;justify-content:center;">
+        <span style="font-size:8px;font-weight:900;color:${color};">${rescued ? '✓' : '!'}</span>
       </div>
     </div>
   `;
-
   return L.divIcon({
     html,
-    className: 'custom-hexapod-tactical-icon',
-    iconSize: [72, 72],
-    iconAnchor: [36, 36],
+    className: 'tactical-triage-marker',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 }
 
-// 3. Post-Earthquake Triage Marker
-function createRealisticTriageIcon(triage: TriageEvent, isSelected: boolean) {
-  const isRescued = triage.rescueStatus === 'RESCUED';
-  const isCritical = triage.severity === 'CRITICAL';
-  const color = isRescued ? '#10b981' : isCritical ? '#ff4b1f' : '#f59e0b';
-
-  const html = `
-    <div class="relative flex items-center justify-center cursor-pointer select-none" style="width: 52px; height: 52px;">
-      ${!isRescued ? `<div class="absolute inset-1 rounded-full opacity-50 animate-ping" style="background-color: ${color};"></div>` : ''}
-      <div class="relative w-8 h-8 rounded-full border-2 border-white shadow-[0_0_16px_${color}] flex items-center justify-center" style="background-color: #0d1017; border-color: ${color};">
-        <span style="font-size: 13px; font-weight: bold; color: ${color};">${isRescued ? '✓' : isCritical ? '⚠️' : '🚨'}</span>
-      </div>
-      <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.2 rounded bg-[#0a0d14]/95 border text-[8.5px] font-mono font-bold text-white shadow-lg" style="border-color: ${color};">
-        ${triage.id}
-      </div>
-    </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: 'custom-triage-marker-icon',
-    iconSize: [52, 52],
-    iconAnchor: [26, 26],
+// ---------------------------------------------------------------------------
+// Map Click Handler — click outside markers to reset zoom
+// ---------------------------------------------------------------------------
+function MapClickHandler({ onMapClick }: { onMapClick?: () => void }) {
+  useMapEvents({
+    click: () => {
+      onMapClick?.();
+    }
   });
+  return null;
 }
 
+// ---------------------------------------------------------------------------
+// Map View Controller — smooth flyTo on select, flyBack on deselect
+// ---------------------------------------------------------------------------
+function MapViewController({ focusCoords }: { focusCoords: [number, number] | null }) {
+  const map = useMap();
+  const prevRef = useRef<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (focusCoords) {
+      map.flyTo(focusCoords, 20, { animate: true, duration: 1.0 });
+      prevRef.current = focusCoords;
+    } else if (prevRef.current !== null) {
+      map.flyTo([28.61390, 77.20900], 18, { animate: true, duration: 0.9 });
+      prevRef.current = null;
+    }
+  }, [focusCoords, map]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Main TacticalMap Component
+// ---------------------------------------------------------------------------
 export const TacticalMap: React.FC<TacticalMapProps> = ({
   drones,
   hexapods = [],
@@ -209,350 +221,321 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   onSelectDrone,
   selectedHexapodId,
   onSelectHexapod,
+  onResetFocus,
   selectedTriageId,
-  onSelectTriage,
-  onDispatchMedicalDrone,
-  onDispatchHexapodInfiltration
+  onSelectTriage
 }) => {
-  const [activeLayerKey, setActiveLayerKey] = useState<keyof typeof MAP_LAYERS>('CARTODB_DARK');
-  const [showPheromones, setShowPheromones] = useState<boolean>(true);
-  const [showGeofenceLaser, setShowGeofenceLaser] = useState<boolean>(true);
-  const [showHexapods, setShowHexapods] = useState<boolean>(true);
+  const [activeLayer, setActiveLayer] = useState<LayerKey>('GOOGLE_SATELLITE');
+  const [showPheromones, setShowPheromones] = useState(true);
+  const [showGeofence, setShowGeofence] = useState(true);
+  const [showHexapods, setShowHexapods] = useState(true);
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
-  const activeLayer = MAP_LAYERS[activeLayerKey];
+  const layer = MAP_LAYERS[activeLayer];
 
-  // Dynamic Polygon Boundary from 6 Hexapods on outer ridge vertices (~140 km²)
-  const hexapodGeofenceCoords = hexapods.map(h => [h.position.lat, h.position.lng] as [number, number]);
-  const hexapodGeofenceLoop = hexapods.length > 0 ? [...hexapodGeofenceCoords, hexapodGeofenceCoords[0]] : [];
+  const focusedDrone = drones.find(d => d.id === selectedDroneId);
+  const focusedHexapod = hexapods.find(h => h.id === selectedHexapodId);
+  const focusCoords: [number, number] | null = focusedDrone
+    ? [focusedDrone.position.lat, focusedDrone.position.lng]
+    : focusedHexapod
+    ? [focusedHexapod.position.lat, focusedHexapod.position.lng]
+    : null;
 
-  const interiorDrones = drones.filter(d => d.zoneAssignment === 'INTERIOR_CORE');
-  const perimeterDrones = drones.filter(d => d.zoneAssignment === 'PERIMETER_RING');
+  const isUnitFocused = focusCoords !== null;
+  const hexaCoords = hexapods.map(h => [h.position.lat, h.position.lng] as [number, number]);
+  const hexaLoop = hexapods.length > 0 ? [...hexaCoords, hexaCoords[0]] : [];
+
+  const layerOptions: { key: LayerKey; label: string; icon: string }[] = [
+    { key: 'GOOGLE_SATELLITE', label: 'Google Satellite', icon: '🛰' },
+    { key: 'GOOGLE_HYBRID',    label: 'Google Hybrid',    icon: '🗺' },
+    { key: 'ESRI_SATELLITE',   label: 'ESRI Satellite',   icon: '📡' },
+    { key: 'CARTODB_DARK',     label: 'Tactical Dark',    icon: '🌑' },
+  ];
 
   return (
-    <div className="relative w-full h-full flex flex-col rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#08090d]">
-      
-      {/* ------------------------------------------------------------- */}
-      {/* TOP TACTICAL CONTROL BAR (Clean, non-overlapping HUD)          */}
-      {/* ------------------------------------------------------------- */}
+    <div
+      className="relative w-full h-full flex flex-col rounded-xl overflow-hidden select-none"
+      style={{ border: '1px solid rgba(255,255,255,0.07)', background: '#06080f' }}
+    >
+
+      {/* ── TOP HUD OVERLAY ── */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between pointer-events-none">
-        
-        {/* Top Left: Coordinates & Air-Ground Swarm Partition Counters */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-[#0d0f17]/90 backdrop-blur-md border border-white/10 px-3.5 py-2 rounded-xl shadow-2xl">
-          <Compass className="w-4 h-4 text-[#ff6b2c] animate-spin" style={{ animationDuration: '24s' }} />
-          <span className="text-xs font-mono font-bold text-white tracking-wide">
-            28.6139° N, 77.2090° E
-          </span>
-          <span className="text-slate-600">|</span>
-          <span className="text-xs font-mono text-[#ff6b2c] font-bold flex items-center gap-1">
-            <span>6 Interior</span>
-          </span>
-          <span className="text-slate-600">+</span>
-          <span className="text-xs font-mono text-purple-300 font-bold flex items-center gap-1">
-            <span>4 Perimeter</span>
-          </span>
-          <span className="text-slate-600">+</span>
-          <span className="text-xs font-mono text-cyan-300 font-bold flex items-center gap-1">
-            <span>6 Hexapods</span>
-          </span>
+
+        {/* Left: Coordinates & Active Unit Indicator */}
+        <div
+          className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-lg shadow-2xl"
+          style={{ background: 'rgba(4,6,12,0.94)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.09)' }}
+        >
+          <Compass size={12} className="text-orange-400 animate-spin" style={{ animationDuration: '18s' }} />
+          <span className="font-mono text-[10px] font-bold text-white">28.6139°N 77.2090°E</span>
+          <span className="text-slate-700 text-xs">·</span>
+          <span className="font-mono text-[10px] font-semibold text-orange-400">SECTOR 7-G · 120M</span>
+          {isUnitFocused && (
+            <span
+              className="px-1.5 py-0.5 rounded font-mono text-[8.5px] font-bold animate-pulse ml-1"
+              style={{ background: 'rgba(255,107,44,0.2)', color: '#ff6b2c', border: '1px solid rgba(255,107,44,0.5)' }}
+            >
+              ⊕ FOCUSED: {selectedDroneId || selectedHexapodId}
+            </span>
+          )}
         </div>
 
-        {/* Top Right: Layer Switcher & Overlay Toggles */}
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-[#0d0f17]/90 backdrop-blur-md border border-white/10 p-1.5 rounded-xl shadow-2xl">
+        {/* Right: Map Action Buttons */}
+        <div className="pointer-events-auto flex items-center gap-1.5">
+
+          {/* Explicit Overview / Reset Button */}
+          {isUnitFocused && onResetFocus && (
+            <button
+              onClick={onResetFocus}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all shadow-lg"
+              style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)', backdropFilter: 'blur(12px)' }}
+              title="Click or touch map outside to zoom out"
+            >
+              <ZoomOut size={11} />
+              <span>ZOOM OUT</span>
+            </button>
+          )}
+
           {/* Layer Selector */}
-          <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/5 mr-1">
-            {(Object.keys(MAP_LAYERS) as Array<keyof typeof MAP_LAYERS>).map((key) => {
-              const layer = MAP_LAYERS[key];
-              const isSelected = activeLayerKey === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setActiveLayerKey(key)}
-                  className={`px-2.5 py-1 text-[10.5px] font-mono font-bold rounded-md transition-all ${
-                    isSelected
-                      ? 'bg-[#ff6b2c] text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {layer.name}
-                </button>
-              );
-            })}
+          <div className="relative">
+            <button
+              onClick={() => setLayerMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all shadow-lg"
+              style={{ background: 'rgba(255,107,44,0.12)', color: '#ff6b2c', border: '1px solid rgba(255,107,44,0.35)', backdropFilter: 'blur(12px)' }}
+            >
+              <Map size={11} />
+              <span>{layerOptions.find(l => l.key === activeLayer)?.icon} {layerOptions.find(l => l.key === activeLayer)?.label.split(' ')[1]}</span>
+            </button>
+            {layerMenuOpen && (
+              <div
+                className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden shadow-2xl min-w-[160px] z-[1200]"
+                style={{ background: 'rgba(8,10,18,0.98)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.09)' }}
+              >
+                {layerOptions.map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => { setActiveLayer(opt.key); setLayerMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 font-mono text-[10px] text-left transition-all hover:bg-white/5"
+                    style={activeLayer === opt.key ? {
+                      background: 'rgba(255,107,44,0.15)',
+                      color: '#ff6b2c',
+                    } : { color: '#94a3b8' }}
+                  >
+                    <span>{opt.icon}</span>
+                    <span>{opt.label}</span>
+                    {activeLayer === opt.key && <span className="ml-auto text-orange-400">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Hexapod Laser Geofence Toggle */}
+          {/* Pheromone heatmap toggle */}
           <button
-            onClick={() => setShowGeofenceLaser(!showGeofenceLaser)}
-            className={`px-2.5 py-1 text-[10.5px] font-mono font-bold rounded-lg border transition-all flex items-center gap-1.5 ${
-              showGeofenceLaser
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                : 'bg-black/30 text-slate-400 border-white/5 hover:text-white'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5 text-cyan-400" />
-            Laser Geofence
-          </button>
+            onClick={() => setShowPheromones(s => !s)}
+            className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] font-semibold transition-all shadow-lg"
+            style={showPheromones
+              ? { background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.4)', backdropFilter: 'blur(12px)' }
+              : { background: 'rgba(4,6,12,0.8)',      color: '#475569', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)' }
+            }
+          >PHM</button>
 
-          {/* ACS Slope Risk Heatmap Toggle */}
+          {/* Laser Geofence toggle */}
           <button
-            onClick={() => setShowPheromones(!showPheromones)}
-            className={`px-2.5 py-1 text-[10.5px] font-mono font-bold rounded-lg border transition-all flex items-center gap-1.5 ${
-              showPheromones
-                ? 'bg-[#ff6b2c]/20 text-[#ff6b2c] border-[#ff6b2c]/50 shadow-[0_0_10px_rgba(255,107,44,0.3)]'
-                : 'bg-black/30 text-slate-400 border-white/5 hover:text-white'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Slope Heatmap
-          </button>
+            onClick={() => setShowGeofence(s => !s)}
+            className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] font-semibold transition-all shadow-lg"
+            style={showGeofence
+              ? { background: 'rgba(6,182,212,0.15)', color: '#67e8f9', border: '1px solid rgba(6,182,212,0.4)', backdropFilter: 'blur(12px)' }
+              : { background: 'rgba(4,6,12,0.8)',     color: '#475569', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)' }
+            }
+          >GEO</button>
+
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* LEAFLET INTERACTIVE MAP CANVAS (Expanded Zoom 13 for ~140km²)  */}
-      {/* ------------------------------------------------------------- */}
-      <div className="flex-grow w-full h-full relative z-0">
+      {/* ── LEAFLET INTERACTIVE MAP CANVAS ── */}
+      <div className="flex-grow w-full h-full z-0">
         <MapContainer
-          center={[28.6139, 77.2090]}
-          zoom={13}
+          center={[28.61390, 77.20900]}
+          zoom={18}
           zoomControl={false}
           className="w-full h-full"
-          style={{ background: '#08090d' }}
+          style={{ background: '#06080f' }}
         >
           <ZoomControl position="bottomright" />
+          
+          {/* Map View Controller for smooth flyTo zoom-in / fly-back zoom-out */}
+          <MapViewController focusCoords={focusCoords} />
 
-          {/* Dynamic Tile Layer */}
+          {/* Map Click Handler — clicking outside any marker automatically zooms out */}
+          <MapClickHandler onMapClick={onResetFocus} />
+
           <TileLayer
-            key={activeLayerKey}
-            url={activeLayer.url}
-            subdomains={activeLayer.subdomains}
-            maxZoom={activeLayer.maxZoom}
-            attribution={activeLayer.attribution}
+            key={activeLayer}
+            url={layer.url}
+            subdomains={layer.subdomains as any}
+            maxZoom={layer.maxZoom}
+            attribution={layer.attribution}
           />
 
-          {/* 1. ACS Stigmergic Search & Slope Hazard Grid (~140 km²) */}
+          {/* Building footprint outline (120m x 120m structure) */}
+          <Polygon
+            positions={[
+              [28.61450, 77.20840],
+              [28.61450, 77.20960],
+              [28.61330, 77.20960],
+              [28.61330, 77.20840]
+            ]}
+            pathOptions={{ color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.05, weight: 1.5, dashArray: '5 5' }}
+          />
+
+          {/* Critical collapse zone */}
+          <Polygon
+            positions={[
+              [28.61440, 77.20860],
+              [28.61440, 77.20940],
+              [28.61390, 77.20940],
+              [28.61390, 77.20860]
+            ]}
+            pathOptions={{ color: '#ef4444', fillColor: '#991b1b', fillOpacity: 0.18, weight: 1.5 }}
+          />
+
+          {/* Pheromone heatmap */}
           {showPheromones && pheromoneGrid.map((cell) => {
-            const isHazardSlope = cell.slopeRiskLevel > 0.6;
-            const isRecruitment = cell.recruitmentLevel > 0.4;
-            const isSearched = cell.coverageScore > 0.3;
-
-            const fillColor = isHazardSlope
-              ? '#dc2626'
-              : isRecruitment
-              ? '#ff6b2c'
-              : isSearched
-              ? '#10b981'
-              : 'transparent';
-
-            const fillOpacity = isHazardSlope ? 0.30 : isRecruitment ? 0.35 : isSearched ? 0.12 : 0.0;
-
+            const isHazard    = cell.slopeRiskLevel > 0.6;
+            const isRecruit   = cell.recruitmentLevel > 0.4;
+            const isSearched  = cell.coverageScore > 0.3;
+            const fillColor   = isHazard ? '#dc2626' : isRecruit ? '#ff6b2c' : isSearched ? '#10b981' : 'transparent';
+            const fillOpacity = isHazard ? 0.28 : isRecruit ? 0.32 : isSearched ? 0.1 : 0;
+            if (fillOpacity === 0) return null;
             return (
               <Rectangle
                 key={cell.cellId}
-                bounds={[
-                  [cell.bounds.south, cell.bounds.west],
-                  [cell.bounds.north, cell.bounds.east]
-                ]}
-                pathOptions={{
-                  fillColor,
-                  fillOpacity,
-                  weight: 0.5,
-                  color: isHazardSlope ? '#ef4444' : isRecruitment ? '#ff6b2c' : '#334155',
-                  dashArray: isHazardSlope ? '3, 3' : undefined
-                }}
+                bounds={[[cell.bounds.south, cell.bounds.west], [cell.bounds.north, cell.bounds.east]]}
+                pathOptions={{ fillColor, fillOpacity, weight: 0.4, color: isHazard ? '#ef4444' : isRecruit ? '#ff6b2c' : '#334155', dashArray: isHazard ? '3 3' : undefined }}
               />
             );
           })}
 
-          {/* 2. Expansive Autonomous Hexapod Dynamic Laser Geofence Perimeter */}
-          {showGeofenceLaser && hexapodGeofenceCoords.length > 2 && (
+          {/* Hexapod geofence laser polygon */}
+          {showGeofence && hexaCoords.length > 2 && (
             <>
-              {/* Shaded Safety Polygon Corridor */}
               <Polygon
-                positions={hexapodGeofenceCoords}
-                pathOptions={{
-                  fillColor: '#06b6d4',
-                  fillOpacity: 0.09,
-                  color: '#06b6d4',
-                  weight: 2,
-                  dashArray: '8, 6'
-                }}
+                positions={hexaCoords}
+                pathOptions={{ fillColor: '#06b6d4', fillOpacity: 0.06, color: '#06b6d4', weight: 1.2, dashArray: '6 5' }}
               />
-
-              {/* Glowing High-Power Laser Link Lines */}
               <Polyline
-                positions={hexapodGeofenceLoop}
-                pathOptions={{
-                  color: '#22d3ee',
-                  weight: 2.8,
-                  opacity: 0.9
-                }}
+                positions={hexaLoop}
+                pathOptions={{ color: '#22d3ee', weight: 2.0, opacity: 0.8 }}
               />
             </>
           )}
 
-          {/* 3. Regional Landslide Scarp & Collapsed Rubble Areas */}
-          <Polygon
-            positions={[
-              [28.6220, 77.2180],
-              [28.6280, 77.2280],
-              [28.6230, 77.2310],
-              [28.6180, 77.2200]
-            ]}
-            pathOptions={{
-              color: '#f59e0b',
-              fillColor: '#b45309',
-              fillOpacity: 0.3,
-              weight: 1.5,
-              dashArray: '4, 4'
-            }}
-          >
-            <Popup className="custom-leaflet-popup">
-              <div className="p-1 font-mono text-xs text-white">
-                <strong className="text-amber-400 block">⚠️ ACTIVE LANDSLIDE SLIP SCARP</strong>
-                <span>East Perimeter Ridge | Soil Shear: 98.2 kPa</span>
-              </div>
-            </Popup>
-          </Polygon>
-
-          <Polygon
-            positions={[
-              [28.6135, 77.2080],
-              [28.6165, 77.2130],
-              [28.6140, 77.2145],
-              [28.6115, 77.2095]
-            ]}
-            pathOptions={{
-              color: '#ef4444',
-              fillColor: '#991b1b',
-              fillOpacity: 0.35,
-              weight: 1.5
-            }}
-          >
-            <Popup className="custom-leaflet-popup">
-              <div className="p-1 font-mono text-xs text-white">
-                <strong className="text-red-400 block">🚨 COLLAPSED CONCRETE SLAB VOID</strong>
-                <span>Sector 7-G Interior Core | Acoustic Tap at 2.8Hz</span>
-              </div>
-            </Popup>
-          </Polygon>
-
-          {/* 4. Ground Hexapod Anchors (6 Perimeter Nodes) */}
+          {/* Ground Hexapods */}
           {showHexapods && hexapods.map((hexa) => (
             <Marker
               key={hexa.id}
               position={[hexa.position.lat, hexa.position.lng]}
-              icon={createRealisticHexapodIcon(hexa, selectedHexapodId === hexa.id)}
-              eventHandlers={{
-                click: () => onSelectHexapod && onSelectHexapod(hexa.id)
+              icon={createHexapodIcon(hexa, selectedHexapodId === hexa.id)}
+              eventHandlers={{ 
+                click: (e: any) => {
+                  if (e?.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+                  if (selectedHexapodId === hexa.id) { 
+                    onResetFocus?.(); 
+                  } else { 
+                    onSelectHexapod?.(hexa.id); 
+                  }
+                }
               }}
             >
               <Popup className="custom-leaflet-popup" closeButton={false}>
-                <div className="p-3 bg-[#0a0d14] text-slate-100 rounded-xl font-mono text-xs border border-cyan-500/40 min-w-[240px] shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
-                    <span className="font-bold text-cyan-400 flex items-center gap-1.5">
-                      🕷️ {hexa.id} [{hexa.callsign}]
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/60">
-                      {hexa.status}
-                    </span>
+                <div className="p-3 font-mono text-xs min-w-[210px] rounded-xl"
+                  style={{ background: '#0a0d14', border: '1px solid rgba(6,182,212,0.4)', color: '#e2e8f0' }}
+                >
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                    <span className="font-extrabold text-cyan-400">{hexa.id}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                      style={{ background: 'rgba(6,182,212,0.15)', color: '#67e8f9' }}
+                    >{hexa.status}</span>
                   </div>
-
-                  <div className="space-y-1.5 text-[11px] mb-3 text-slate-300">
-                    <div className="flex justify-between"><span>Boundary Node:</span> <strong className="text-white">{hexa.perimeterVertexName}</strong></div>
-                    <div className="flex justify-between"><span>Role:</span> <strong className="text-cyan-300">{hexa.role}</strong></div>
-                    <div className="flex justify-between"><span>Ground Stability:</span> <strong className="text-emerald-400">{hexa.groundStabilityIndex}%</strong></div>
-                    <div className="flex justify-between"><span>Seismic Acoustic:</span> <strong className="text-amber-300">{hexa.seismicAcoustic.vibrationMmS} mm/s</strong></div>
-                    <div className="flex justify-between"><span>Laser Geofence:</span> <strong className="text-cyan-400">Locked to {hexa.geofenceLaser.connectedToHexaId} ({hexa.geofenceLaser.laserRangeM}m)</strong></div>
+                  <div className="space-y-1 text-[11px] text-slate-300">
+                    <div>PWR: <strong className="text-emerald-400">{hexa.battery.level}%</strong> · STAB: <strong>{hexa.groundStabilityIndex}%</strong></div>
+                    <div>VERTEX: <span className="text-slate-400">{hexa.perimeterVertexName}</span></div>
+                    <div>SEISMIC: <span className="text-amber-400">{hexa.seismicAcoustic.vibrationMmS} mm/s</span></div>
                   </div>
-
-                  <button
-                    onClick={() => onDispatchHexapodInfiltration && onDispatchHexapodInfiltration('CAS-EQ-01', hexa.id)}
-                    className="w-full py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10.5px] uppercase shadow-lg transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Target className="w-3.5 h-3.5" /> Deploy Rubble Infiltration Probe
-                  </button>
                 </div>
               </Popup>
             </Marker>
           ))}
 
-          {/* 5. 10 Aerial Ant Quadcopters (4 Perimeter Ring + 6 Interior Core) */}
+          {/* Aerial Drones */}
           {drones.map((drone) => (
             <Marker
               key={drone.id}
               position={[drone.position.lat, drone.position.lng]}
-              icon={createRealisticDroneIcon(drone, selectedDroneId === drone.id)}
-              eventHandlers={{
-                click: () => onSelectDrone(drone.id)
+              icon={createDroneIcon(drone, selectedDroneId === drone.id)}
+              eventHandlers={{ 
+                click: (e: any) => {
+                  if (e?.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+                  if (selectedDroneId === drone.id) { 
+                    onResetFocus?.(); 
+                  } else { 
+                    onSelectDrone(drone.id); 
+                  }
+                }
               }}
             >
               <Popup className="custom-leaflet-popup" closeButton={false}>
-                <div className="p-3 bg-[#0a0d14] text-slate-100 rounded-xl font-mono text-xs border border-[#ff6b2c]/40 min-w-[240px] shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
-                    <span className="font-bold text-[#ff6b2c] flex items-center gap-1.5">
-                      🐜 {drone.id} [{drone.callsign}]
-                    </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                      drone.zoneAssignment === 'PERIMETER_RING' ? 'bg-purple-950/80 text-purple-300 border-purple-700/60' : 'bg-emerald-950/80 text-emerald-400 border-emerald-700/60'
-                    }`}>
-                      {drone.zoneAssignment.replace('_', ' ')}
-                    </span>
+                <div className="p-3 font-mono text-xs min-w-[230px] rounded-xl"
+                  style={{ background: '#0a0d14', border: '1px solid rgba(255,107,44,0.4)', color: '#e2e8f0' }}
+                >
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-orange-400">{drone.id}</span>
+                      <span className="text-[9px] text-slate-500">({drone.callsign})</span>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                      style={{ background: 'rgba(255,107,44,0.15)', color: '#fb923c' }}
+                    >{drone.status}</span>
                   </div>
-
-                  <div className="space-y-1.5 text-[11px] mb-3 text-slate-300">
-                    <div className="flex justify-between"><span>Tactical Goal:</span> <strong className="text-amber-300">{drone.perception.autonomousGoal}</strong></div>
-                    <div className="flex justify-between"><span>Altitude (AGL):</span> <strong className="text-white">{drone.position.altitude} meters</strong></div>
-                    <div className="flex justify-between"><span>Ground Speed:</span> <strong className="text-white">{drone.groundSpeed} m/s ({drone.heading}°)</strong></div>
-                    <div className="flex justify-between"><span>6S LiPo Battery:</span> <strong className="text-emerald-400">{drone.battery.level}% ({drone.battery.voltage}V)</strong></div>
-                    <div className="flex justify-between"><span>Payload:</span> <strong className="text-[#ff6b2c]">{drone.payload.type}</strong></div>
+                  <div className="space-y-1 text-[11px] text-slate-300">
+                    <div>ALT: <strong className="text-white">{drone.position.altitude}m</strong> · SPD: <strong>{drone.groundSpeed} m/s</strong></div>
+                    <div>BATT: <strong className={drone.battery.level < 30 ? 'text-red-400' : 'text-emerald-400'}>{drone.battery.level}%</strong></div>
+                    <div>ZONE: <span className="text-purple-300">{drone.zoneAssignment}</span></div>
+                    <div className="text-[9.5px] text-slate-500 italic pt-0.5 truncate">{drone.perception.autonomousGoal}</div>
                   </div>
-
-                  <button
-                    onClick={() => onSelectDrone(drone.id)}
-                    className="w-full py-1.5 rounded-lg gradient-orange-btn text-white font-bold text-[10.5px] uppercase shadow-lg transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Activity className="w-3.5 h-3.5" /> Inspect Live Telemetry Pod
-                  </button>
                 </div>
               </Popup>
             </Marker>
           ))}
 
-          {/* 6. Post-Earthquake Triage Markers */}
+          {/* Triage casualty markers */}
           {triageEvents.map((triage) => (
             <Marker
               key={triage.id}
               position={[triage.location.lat, triage.location.lng]}
-              icon={createRealisticTriageIcon(triage, selectedTriageId === triage.id)}
-              eventHandlers={{
-                click: () => onSelectTriage(triage)
+              icon={createTriageIcon(triage, selectedTriageId === triage.id)}
+              eventHandlers={{ 
+                click: (e: any) => {
+                  if (e?.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+                  onSelectTriage(triage);
+                }
               }}
             >
               <Popup className="custom-leaflet-popup" closeButton={false}>
-                <div className="p-3.5 bg-[#0a0d14] text-slate-100 rounded-xl font-mono text-xs border border-white/20 min-w-[260px] shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
-                    <span className="font-bold text-white">{triage.id}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      triage.severity === 'CRITICAL' ? 'bg-[#ff4b1f] text-white shadow-[0_0_10px_#ff4b1f]' :
-                      triage.severity === 'URGENT' ? 'bg-amber-500 text-black' : 'bg-emerald-500 text-black'
-                    }`}>
-                      {triage.severity}
-                    </span>
+                <div className="p-3 font-mono text-xs min-w-[220px] rounded-xl"
+                  style={{ background: '#0a0d14', border: '1px solid rgba(239,68,68,0.4)', color: '#e2e8f0' }}
+                >
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                    <span className="font-extrabold text-red-400">{triage.id}</span>
+                    <span className="font-bold text-[10px]" style={{ color: triage.rescueStatus === 'RESCUED' ? '#6ee7b7' : '#fbbf24' }}>{triage.rescueStatus}</span>
                   </div>
-
-                  <div className="space-y-1.5 text-[11px] mb-3 text-slate-300">
-                    <div className="flex justify-between"><span>Callsign:</span> <strong className="text-white">{triage.victimCallsign}</strong></div>
-                    <div className="flex justify-between"><span>Entrapment:</span> <strong className="text-amber-300">{triage.entrapmentType.replace(/_/g, ' ')}</strong></div>
-                    <div className="flex justify-between"><span>Acoustic Tap:</span> <strong className={triage.acousticEchoDetected ? 'text-emerald-400 font-bold' : 'text-slate-400'}>{triage.acousticEchoDetected ? '2.8Hz SIGNAL DETECTED' : 'NONE'}</strong></div>
-                    <div className="flex justify-between"><span>Body Temp:</span> <strong className="text-white">{triage.thermal.bodyTemp}°C (Δ +{triage.thermal.differential}°C)</strong></div>
+                  <div className="space-y-1 text-[11px] text-slate-300">
+                    <div>SEVERITY: <strong style={{ color: triage.severity === 'CRITICAL' ? '#f87171' : '#fbbf24' }}>{triage.severity}</strong></div>
+                    <div>ZONE: <span className="text-amber-300">{triage.location.zone || triage.sector || 'Central Atrium'}</span></div>
+                    <div>HR: <strong className="text-white">{triage.heartRateBpm || 112} BPM</strong> · TEMP: {triage.thermal?.bodyTemp ?? triage.thermalSignatureC ?? 37.1}°C</div>
+                    <div>TRAPPED: <strong className="text-white">{triage.trappedPersonsCount || 1}</strong></div>
                   </div>
-
-                  <button
-                    onClick={() => onDispatchMedicalDrone && onDispatchMedicalDrone(triage.id)}
-                    className="w-full py-2 rounded-lg gradient-orange-btn text-white font-bold text-xs uppercase shadow-md flex items-center justify-center gap-1.5"
-                  >
-                    <Send className="w-3.5 h-3.5" /> Dispatch Nearest Autonomous UAV
-                  </button>
                 </div>
               </Popup>
             </Marker>
@@ -560,31 +543,28 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
         </MapContainer>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* BOTTOM HUD OVERLAYS: Live Geofence & Air-Ground Swarm Status   */}
-      {/* ------------------------------------------------------------- */}
-      <div className="absolute bottom-3 left-3 right-16 z-[1000] flex items-end justify-between pointer-events-none">
-        
-        {/* Bottom Left: Hexapod Geofence Status + Partition Legend */}
-        <div className="pointer-events-auto bg-[#0d0f17]/90 backdrop-blur-md border border-white/10 p-2.5 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-mono">
-          <div className="flex items-center gap-2 border-r border-white/10 pr-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-            <span className="text-cyan-300 font-bold">GEOFENCE ENVELOPE: 142.8 km²</span>
-            <span className="text-slate-400">(6 Anchors • 99.2% Lock)</span>
-          </div>
-
-          <div className="flex items-center gap-3 text-[11px] text-slate-300">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#ff6b2c]"></span> 6 Interior UAVs</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400"></span> 4 Perimeter UAVs</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-400"></span> 6 Hexapods</span>
-          </div>
+      {/* ── BOTTOM STATUS RIBBON ── */}
+      <div
+        className="h-[26px] flex items-center justify-between px-4 font-mono text-[9px] select-none z-10 shrink-0"
+        style={{ background: 'rgba(4,6,12,0.97)', borderTop: '1px solid rgba(255,255,255,0.05)' }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 font-semibold text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            GEOFENCE ACTIVE · 120M
+          </span>
+          <span className="text-slate-700">·</span>
+          <span className="text-slate-500">{drones.length} UAV · {hexapods.length} HEXA</span>
+          {isUnitFocused && (
+            <>
+              <span className="text-slate-700">·</span>
+              <span className="text-orange-400 font-bold">TOUCH MAP OUTSIDE TO ZOOM OUT</span>
+            </>
+          )}
         </div>
-
-        {/* Bottom Right: Mission Coverage Stats */}
-        <div className="pointer-events-auto bg-[#0d0f17]/90 backdrop-blur-md border border-white/10 px-3.5 py-2 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-mono">
-          <span className="text-slate-400">EXPANDED SURVEY: <strong className="text-[#ff6b2c]">89.2%</strong></span>
-          <span className="text-slate-600">|</span>
-          <span className="text-slate-400">TOTAL AREA: <strong className="text-white">142.8 km²</strong></span>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-700">28.6139°N 77.2090°E</span>
+          <span className="text-orange-400 font-semibold">● {layerOptions.find(l => l.key === activeLayer)?.label}</span>
         </div>
       </div>
 

@@ -46,7 +46,7 @@ export const SwarmMetricsView: React.FC<SwarmMetricsViewProps> = ({
   const totalRssi = Math.round(drones.reduce((acc, d) => acc + d.link.rssi, 0) / (drones.length || 1));
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-96px)] overflow-y-auto space-y-4 pr-1">
+    <div className="flex-1 flex flex-col h-[calc(100vh-74px)] overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
       
       {/* 1. Header Banner */}
       <div className="glass-panel rounded-2xl p-4 border border-white/10 shadow-xl flex items-center justify-between shrink-0">

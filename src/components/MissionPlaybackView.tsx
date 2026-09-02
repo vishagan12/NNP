@@ -27,7 +27,7 @@ export const MissionPlaybackView: React.FC<MissionPlaybackViewProps> = ({
   const [currentTimeSec, setCurrentTimeSec] = useState<number>(68);
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-96px)] overflow-hidden">
+    <div className="flex flex-col gap-2 h-[calc(100vh-74px)] overflow-hidden">
       {/* 1. Playback Header */}
       <div className="glass-panel rounded-2xl p-4 border border-white/10 shadow-xl flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3.5">

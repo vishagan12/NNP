@@ -136,34 +136,46 @@ export interface HexapodTelemetry {
 // Post-Earthquake & Landslide Triage Event Model
 export interface TriageEvent {
   id: string;
-  victimCallsign: string;
+  victimCallsign?: string;
   location: {
     lat: number;
     lng: number;
     altitude: number;
+    zone?: string;
   };
-  sector: string;
+  sector?: string;
   timestamp: number;
   severity: 'CRITICAL' | 'URGENT' | 'STABLE';
-  entrapmentType: 'COLLAPSED_CONCRETE_VOID' | 'MUD_SLOPE_BURIAL' | 'TIMBER_DEBRIS_CANOPY' | 'BASEMENT_CAVE_IN';
-  crushSyndromeRisk: 'HIGH' | 'MODERATE' | 'LOW';
-  acousticEchoDetected: boolean;
-  soilShearStressKPa: number;
-  thermal: {
+  entrapmentType?: 'COLLAPSED_CONCRETE_VOID' | 'MUD_SLOPE_BURIAL' | 'TIMBER_DEBRIS_CANOPY' | 'BASEMENT_CAVE_IN' | string;
+  crushSyndromeRisk?: 'HIGH' | 'MODERATE' | 'LOW';
+  acousticEchoDetected?: boolean;
+  soilShearStressKPa?: number;
+  thermal?: {
     bodyTemp: number;
     ambientTemp: number;
     differential: number;
     thermalGradient: number;
   };
-  vitals: {
+  thermalSignatureC?: number;
+  heartRateBpm?: number;
+  respirationBpm?: number;
+  vitals?: {
     respirationRate: number;
     estimatedMovementScore: number;
   };
-  confidence: number;
-  rescueStatus: 'PENDING' | 'DISPATCHED' | 'IN_TRANSIT' | 'RESCUED';
+  confidence?: number;
+  confidenceScore?: number;
+  rescueStatus: 'PENDING' | 'PENDING_EXTRACTION' | 'DISPATCHED' | 'MEDIC_DISPATCHED' | 'IN_TRANSIT' | 'IN_ASSESSMENT' | 'INFILTRATING' | 'RESCUED' | string;
   assignedDroneId: string | null;
-  recommendedExtraction: 'UAV_LIFELINE_AIRDROP' | 'HEXAPOD_RUBBLE_MICRO_INFILTRATION' | 'GROUND_USAR_TEAM';
-  notes: string;
+  recommendedExtraction?: 'UAV_LIFELINE_AIRDROP' | 'HEXAPOD_RUBBLE_MICRO_INFILTRATION' | 'GROUND_USAR_TEAM' | string;
+  notes?: string;
+  detectedByDroneId?: string;
+  hazardContext?: string;
+  structuralIntegrityPct?: number;
+  airborneGasDetected?: boolean;
+  tapFrequencyHz?: number;
+  trappedPersonsCount?: number;
+  recommendedAction?: string;
 }
 
 export interface PheromoneCell {
@@ -187,16 +199,16 @@ export interface AlertEntry {
   id: string;
   timestamp: number;
   tier: 'TIER_1_CRITICAL' | 'TIER_2_WARNING' | 'TIER_3_INFO';
-  hazardType: 
-    | 'LANDSLIDE_SLIP'
-    | 'SEISMIC_AFTERSHOCK'
-    | 'STRUCTURAL_COLLAPSE'
-    | 'RUBBLE_VOID_ENTRAPMENT'
-    | 'SOIL_LIQUEFACTION'
-    | 'GEOFENCE_BREACH'
-    | 'LOW_BATTERY'
-    | 'COMM_JAM'
-    | 'SURVIVOR_FOUND';
+  hazardType:
+  | 'LANDSLIDE_SLIP'
+  | 'SEISMIC_AFTERSHOCK'
+  | 'STRUCTURAL_COLLAPSE'
+  | 'RUBBLE_VOID_ENTRAPMENT'
+  | 'SOIL_LIQUEFACTION'
+  | 'GEOFENCE_BREACH'
+  | 'LOW_BATTERY'
+  | 'COMM_JAM'
+  | 'SURVIVOR_FOUND';
   sourceDroneId: string;
   message: string;
   acknowledged: boolean;
@@ -206,12 +218,12 @@ export interface ReasoningTraceLog {
   id: string;
   timestamp: string;
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'INFO';
-  category: 
-    | 'SEISMIC_TREMOR_ANALYSIS'
-    | 'SLOPE_STABILITY_FAILURE'
-    | 'ACOUSTIC_TAP_CORRELATION'
-    | 'HEXAPOD_GEOFENCE_REANCHOR'
-    | 'SWARM_AIR_GROUND_COORDINATION';
+  category:
+  | 'SEISMIC_TREMOR_ANALYSIS'
+  | 'SLOPE_STABILITY_FAILURE'
+  | 'ACOUSTIC_TAP_CORRELATION'
+  | 'HEXAPOD_GEOFENCE_REANCHOR'
+  | 'SWARM_AIR_GROUND_COORDINATION';
   title: string;
   droneId: string;
   inferencePath: string[];

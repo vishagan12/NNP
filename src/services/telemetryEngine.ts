@@ -16,6 +16,28 @@ import {
   BASE_CENTER 
 } from '../data/mockData';
 
+// Strict Geofence Bounds (120m x 120m Disaster Complex)
+const GEOFENCE_LIMITS = {
+  minLat: 28.61335,
+  maxLat: 28.61455,
+  minLng: 77.20835,
+  maxLng: 77.20965,
+};
+
+// Practical SAR Flight Sector Definitions for 10 UAVs
+interface FlightPlan {
+  pattern: 'RASTER_EW' | 'RASTER_NS' | 'PERIMETER_ORBIT' | 'CENTRAL_LOITER';
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  cruiseSpeed: number;
+  baseAltitude: number;
+  dirLat: number; // current sweep direction
+  dirLng: number;
+  hoverTimer: number; // remaining ticks of hover inspection
+}
+
 export class SwarmTelemetryEngine {
   private drones: DroneTelemetry[] = JSON.parse(JSON.stringify(INITIAL_DRONES));
   private hexapods: HexapodTelemetry[] = JSON.parse(JSON.stringify(INITIAL_HEXAPODS));
@@ -27,9 +49,79 @@ export class SwarmTelemetryEngine {
 
   private listeners: Array<() => void> = [];
   private timer: number | null = null;
+  private tickCounter: number = 0;
+
+  // Individual practical flight state for each drone
+  private flightPlans: Map<string, FlightPlan> = new Map();
 
   constructor() {
+    this.initFlightPlans();
     this.start();
+  }
+
+  private initFlightPlans() {
+    // Distribute realistic SAR mission corridors across the 120m complex
+    this.drones.forEach((d, idx) => {
+      const isPerimeter = d.zoneAssignment === 'PERIMETER_RING';
+      if (isPerimeter) {
+        this.flightPlans.set(d.id, {
+          pattern: 'PERIMETER_ORBIT',
+          minLat: 28.61340,
+          maxLat: 28.61450,
+          minLng: 77.20840,
+          maxLng: 77.20960,
+          cruiseSpeed: 7.2 + (idx % 3) * 0.4,
+          baseAltitude: 30 + (idx % 3) * 2,
+          dirLat: 1,
+          dirLng: 1,
+          hoverTimer: 0
+        });
+      } else if (d.id === 'ANT-03') {
+        // Central Atrium inspection loiter
+        this.flightPlans.set(d.id, {
+          pattern: 'CENTRAL_LOITER',
+          minLat: 28.61375,
+          maxLat: 28.61410,
+          minLng: 77.20885,
+          maxLng: 77.20925,
+          cruiseSpeed: 4.8,
+          baseAltitude: 22,
+          dirLat: 1,
+          dirLng: 1,
+          hoverTimer: 0
+        });
+      } else if (idx % 2 === 0) {
+        // Lawnmower Raster East-West
+        const latOffset = ((idx / 2) % 3) * 0.00030;
+        this.flightPlans.set(d.id, {
+          pattern: 'RASTER_EW',
+          minLat: 28.61345 + latOffset,
+          maxLat: 28.61375 + latOffset,
+          minLng: 77.20845,
+          maxLng: 77.20955,
+          cruiseSpeed: 6.2 + (idx % 3) * 0.5,
+          baseAltitude: 24 + (idx % 4),
+          dirLat: 1,
+          dirLng: idx % 4 === 0 ? 1 : -1,
+          hoverTimer: 0
+        });
+      } else {
+        // Lawnmower Raster North-South
+        const lngOffset = ((idx % 3)) * 0.00032;
+        this.flightPlans.set(d.id, {
+          pattern: 'RASTER_NS',
+          minLat: 28.61345,
+          maxLat: 28.61445,
+          minLng: 77.20845 + lngOffset,
+          maxLng: 77.20875 + lngOffset,
+          cruiseSpeed: 6.0 + (idx % 3) * 0.4,
+          baseAltitude: 26 + (idx % 3),
+          dirLat: idx % 3 === 0 ? 1 : -1,
+          dirLng: 1,
+          hoverTimer: 0
+        });
+      }
+    });
   }
 
   public subscribe(callback: () => void): () => void {
@@ -98,137 +190,19 @@ export class SwarmTelemetryEngine {
       hazardType: 'COMM_JAM',
       sourceDroneId: newMode === 'LIVE_HARDWARE' ? 'HARDWARE_BRIDGE' : 'SIMULATOR',
       message: newMode === 'LIVE_HARDWARE' 
-        ? 'Switched to LIVE Gateway (10 UAVs + 6 Hexapods on LoRa 868MHz Mesh).' 
-        : 'Switched to Synthetic ACS Multi-Agent Air-Ground Simulator.',
-      acknowledged: false
+        ? 'Switched to LIVE Hardware Gateway link.' 
+        : 'Switched to High-Fidelity Swarm Simulation mode.',
+      location: BASE_CENTER
     });
-    this.notify();
-  }
-
-  public acknowledgeAlert(alertId: string) {
-    this.alerts = this.alerts.map(a => a.id === alertId ? { ...a, acknowledged: true } : a);
-    this.notify();
-  }
-
-  // Decentralized payload trigger: nearest autonomous UAV or Hexapod responds
-  public dispatchMedicalDrone(victimId: string) {
-    const targetVictim = this.triageEvents.find(t => t.id === victimId);
-    if (!targetVictim) return;
-
-    // Find nearest available ant drone
-    let closestDrone = this.drones[0];
-    let minDistance = Infinity;
-
-    for (const drone of this.drones) {
-      if (drone.status !== 'LOW BATT') {
-        const dLat = targetVictim.location.lat - drone.position.lat;
-        const dLng = targetVictim.location.lng - drone.position.lng;
-        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestDrone = drone;
-        }
-      }
-    }
-
-    const assignedDroneId = closestDrone.id;
-
-    this.triageEvents = this.triageEvents.map(t => {
-      if (t.id === victimId) {
-        return {
-          ...t,
-          rescueStatus: 'DISPATCHED',
-          assignedDroneId: `${assignedDroneId} [LIFELINE]`
-        };
-      }
-      return t;
-    });
-
-    this.drones = this.drones.map(d => {
-      if (d.id === assignedDroneId) {
-        const dLat = targetVictim.location.lat - d.position.lat;
-        const dLng = targetVictim.location.lng - d.position.lng;
-        const targetHeading = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
-
-        return {
-          ...d,
-          status: 'ENGAGED',
-          heading: Math.round(targetHeading),
-          groundSpeed: 24.5,
-          perception: {
-            ...d.perception,
-            currentStigmergicState: 'FOLLOWING_TRAIL',
-            autonomousGoal: `Rapid intercept and relief delivery to victim ${victimId}`,
-            sensedPheromoneGradient: {
-              ...d.perception.sensedPheromoneGradient,
-              recruitmentDelta: 0.95,
-              repulsionDelta: 0.0,
-              highestTrailAngle: Math.round(targetHeading)
-            }
-          },
-          payload: {
-            ...d.payload,
-            status: 'DISPATCHED'
-          }
-        };
-      }
-      return d;
-    });
-
-    this.addAlert({
-      id: `ALT-DISPATCH-${Date.now()}`,
-      timestamp: Date.now(),
-      tier: 'TIER_1_CRITICAL',
-      hazardType: 'SURVIVOR_FOUND',
-      sourceDroneId: assignedDroneId,
-      message: `Air-Ground Stigmergic Response: ${assignedDroneId} dispatched to casualty ${victimId}!`,
-      acknowledged: false
-    });
-
-    this.notify();
-  }
-
-  // Hexapod Micro-Infiltration trigger for deep rubble voids
-  public dispatchHexapodInfiltration(victimId: string, hexapodId: string = 'HEXA-03') {
-    this.hexapods = this.hexapods.map(h => {
-      if (h.id === hexapodId) {
-        return {
-          ...h,
-          status: 'INFILTRATING_RUBBLE',
-          gaitMode: 'WAVE_STABLE',
-          crawlSpeed: 0.9,
-          payload: {
-            ...h.payload,
-            status: 'ARMED'
-          }
-        };
-      }
-      return h;
-    });
-
-    this.addAlert({
-      id: `ALT-HEXA-INFILTRATE-${Date.now()}`,
-      timestamp: Date.now(),
-      tier: 'TIER_1_CRITICAL',
-      hazardType: 'RUBBLE_VOID_ENTRAPMENT',
-      sourceDroneId: hexapodId,
-      message: `Autonomous Hexapod ${hexapodId} deployed micro-endoscope probe into rubble void for ${victimId}!`,
-      acknowledged: false
-    });
-
-    this.notify();
-  }
-
-  public addAlert(alert: AlertEntry) {
-    this.alerts = [alert, ...this.alerts.slice(0, 39)];
     this.notify();
   }
 
   public start() {
     if (this.timer) return;
+    // 100ms tick for ultra-smooth 10Hz flight kinematics
     this.timer = window.setInterval(() => {
-      this.step();
-    }, 500);
+      this.tick();
+    }, 100);
   }
 
   public stop() {
@@ -238,297 +212,348 @@ export class SwarmTelemetryEngine {
     }
   }
 
-  private step() {
-    // -------------------------------------------------------------------------
-    // 1. AERIAL SWARM SIMULATION: 10 Autonomous Ant UAVs
-    //    - 6 Interior Core Drones: Moving in random directions via Ant Colony System
-    //      with STRONG negative stigmergic repulsion preventing any clustering!
-    //    - 4 Perimeter Ring Drones: Continuous boundary patrol surveillance
-    // -------------------------------------------------------------------------
-    const interiorDronesList = this.drones.filter(d => d.zoneAssignment === 'INTERIOR_CORE');
+  public dispatchMedicalDrone(victimId: string) {
+    const victim = this.triageEvents.find(t => t.id === victimId);
+    if (!victim) return;
 
+    let nearestDrone = this.drones[0];
+    let minDist = Infinity;
+
+    for (const d of this.drones) {
+      if (d.battery.level > 25 && d.status !== 'ENGAGED') {
+        const dist = Math.hypot(d.position.lat - victim.location.lat, d.position.lng - victim.location.lng);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestDrone = d;
+        }
+      }
+    }
+
+    nearestDrone.status = 'ENGAGED';
+    nearestDrone.perception.autonomousGoal = `Direct Intercept: Urgent triage delivery to ${victim.id}`;
+    victim.assignedDroneId = nearestDrone.id;
+    victim.rescueStatus = 'MEDIC_DISPATCHED';
+
+    this.addAlert({
+      id: `ALT-DISPATCH-${Date.now()}`,
+      timestamp: Date.now(),
+      tier: 'TIER_1_CRITICAL',
+      hazardType: 'SURVIVOR_FOUND',
+      sourceDroneId: nearestDrone.id,
+      message: `Direct Intercept Tasked: ${nearestDrone.id} dispatched to ${victim.id}`,
+      location: { lat: victim.location.lat, lng: victim.location.lng }
+    });
+
+    this.notify();
+  }
+
+  public dispatchHexapodInfiltration(victimId: string, hexapodId: string) {
+    const victim = this.triageEvents.find(t => t.id === victimId);
+    const hexapod = this.hexapods.find(h => h.id === hexapodId);
+    if (!victim || !hexapod) return;
+
+    hexapod.status = 'INFILTRATING_RUBBLE';
+    hexapod.gaitMode = 'WAVE_STABLE';
+    victim.rescueStatus = 'INFILTRATING';
+
+    this.addAlert({
+      id: `ALT-HEXA-INFILTRATE-${Date.now()}`,
+      timestamp: Date.now(),
+      tier: 'TIER_1_CRITICAL',
+      hazardType: 'STRUCTURAL_COLLAPSE',
+      sourceDroneId: hexapod.id,
+      message: `Ground Penetration Active: ${hexapod.id} crawling into collapsed rubble void for ${victim.id}`,
+      location: { lat: victim.location.lat, lng: victim.location.lng }
+    });
+
+    this.notify();
+  }
+
+  public acknowledgeAlert(alertId: string) {
+    this.alerts = this.alerts.filter(a => a.id !== alertId);
+    this.notify();
+  }
+
+  public addAlert(alert: AlertEntry) {
+    this.alerts.unshift(alert);
+    if (this.alerts.length > 20) {
+      this.alerts.pop();
+    }
+  }
+
+  // =========================================================================
+  // HIGH-FIDELITY PRACTICAL SAR FLIGHT KINEMATICS ENGINE (100ms / 10Hz)
+  // =========================================================================
+  private tick() {
+    this.tickCounter += 1;
+    if (this.tickCounter % 10 === 0) {
+      this.missionStats.missionElapsedSeconds += 1;
+    }
+
+    const { minLat, maxLat, minLng, maxLng } = GEOFENCE_LIMITS;
+
+    // 1. UPDATE 10 AUTONOMOUS DRONES WITH REALISTIC TACTICAL SAR FLIGHT DYNAMICS
     this.drones = this.drones.map((drone, idx) => {
+      let plan = this.flightPlans.get(drone.id);
+      if (!plan) {
+        plan = {
+          pattern: 'RASTER_EW',
+          minLat: 28.61350,
+          maxLat: 28.61440,
+          minLng: 77.20845,
+          maxLng: 77.20955,
+          cruiseSpeed: 6.5,
+          baseAltitude: 24,
+          dirLat: 1,
+          dirLng: 1,
+          hoverTimer: 0
+        };
+        this.flightPlans.set(drone.id, plan);
+      }
+
       let targetHeading = drone.heading;
-      let targetSpeed = drone.groundSpeed;
+      let targetSpeed = plan.cruiseSpeed;
+      let targetAlt = plan.baseAltitude;
       let currentState = drone.perception.currentStigmergicState;
-      let sensedRecruitment = 0.0;
-      let sensedRepulsion = 0.0;
       let currentGoal = drone.perception.autonomousGoal;
 
-      // 1. Calculate proximity and repulsive forces from neighboring drones
-      const neighborIds: string[] = [];
-      let repulsionVecX = 0;
-      let repulsionVecY = 0;
-      let isClustered = false;
+      // ── Priority 1: Engaged Direct Intercept to Casualty ──
+      if (drone.status === 'ENGAGED') {
+        const victim = this.triageEvents.find(t => t.assignedDroneId === drone.id && t.rescueStatus !== 'RESCUED');
+        if (victim) {
+          const dLat = victim.location.lat - drone.position.lat;
+          const dLng = victim.location.lng - drone.position.lng;
+          const dist = Math.hypot(dLat, dLng);
 
+          if (dist > 0.00004) {
+            // Direct approach with deceleration on final approach
+            targetHeading = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
+            targetSpeed = dist > 0.0002 ? 8.0 : 4.2;
+            targetAlt = 18; // descend smoothly for delivery
+            currentState = 'FOLLOWING_TRAIL';
+            currentGoal = `Direct Intercept: Urgent payload transit to ${victim.id}`;
+          } else {
+            // Geostationary hover over casualty for delivery
+            targetHeading = (drone.heading + 2) % 360;
+            targetSpeed = 0.4;
+            targetAlt = 15;
+            currentState = 'RECRUITING_SWARM';
+            currentGoal = `Geostationary Delivery Hover over ${victim.id}`;
+          }
+        }
+      } 
+      // ── Priority 2: Perimeter Ring Orbit ──
+      else if (plan.pattern === 'PERIMETER_ORBIT') {
+        currentState = 'FORAGING_SCOUT';
+        currentGoal = `Perimeter Ring: 360° geofence boundary patrol orbit`;
+        targetSpeed = plan.cruiseSpeed;
+        targetAlt = plan.baseAltitude;
+
+        // Smooth elliptical orbit along inner perimeter
+        const dLat = drone.position.lat - BASE_CENTER.lat;
+        const dLng = drone.position.lng - BASE_CENTER.lng;
+        const angle = Math.atan2(dLng, dLat);
+        // Tangential velocity vector
+        const tangentAngle = ((angle + Math.PI / 2) * 180) / Math.PI;
+        targetHeading = (tangentAngle + 360) % 360;
+      }
+      // ── Priority 3: Central Loiter & 360° Observation Scan ──
+      else if (plan.pattern === 'CENTRAL_LOITER') {
+        currentState = 'FORAGING_SCOUT';
+        currentGoal = 'Central Atrium: Multi-angle thermal & acoustic inspection';
+
+        const centerLat = BASE_CENTER.lat;
+        const centerLng = BASE_CENTER.lng;
+        const dLat = drone.position.lat - centerLat;
+        const dLng = drone.position.lng - centerLng;
+        const distFromCenter = Math.hypot(dLat, dLng);
+
+        if (distFromCenter > 0.00022) {
+          // Steer back to central atrium
+          targetHeading = ((Math.atan2(-dLng, -dLat) * 180) / Math.PI + 360) % 360;
+          targetSpeed = 4.5;
+        } else {
+          // Slow coordinated observation turn with gentle loiter
+          targetHeading = (drone.heading + 3.5) % 360;
+          targetSpeed = 1.8;
+          targetAlt = 22 + Math.sin(this.tickCounter * 0.04) * 1.2;
+        }
+      }
+      // ── Priority 4: Structured Lawnmower / Raster Sector Search ──
+      else if (plan.pattern === 'RASTER_EW') {
+        currentState = 'FORAGING_SCOUT';
+        currentGoal = `Sector Raster: East-West thermal survey leg (Row ${Math.round((drone.position.lat - minLat) * 10000)})`;
+
+        // Check if currently executing a momentary hover inspection
+        if (plan.hoverTimer > 0) {
+          plan.hoverTimer -= 1;
+          targetSpeed = 0.8;
+          targetHeading = (drone.heading + 4) % 360; // slow panoramic look
+          currentGoal = 'Thermal Hotspot Hover Inspection (LiDAR + FLIR active)';
+        } else {
+          // Moving along East-West line
+          if (plan.dirLng > 0 && drone.position.lng >= plan.maxLng - 0.00008) {
+            // Reached East turn point -> step North/South and reverse
+            plan.dirLng = -1;
+            plan.dirLat = (drone.position.lat > plan.maxLat - 0.00008) ? -1 : (drone.position.lat < plan.minLat + 0.00008) ? 1 : plan.dirLat;
+            targetHeading = plan.dirLat > 0 ? 0 : 180;
+            plan.hoverTimer = 12; // brief 1.2s hover look at turn point
+          } else if (plan.dirLng < 0 && drone.position.lng <= plan.minLng + 0.00008) {
+            // Reached West turn point
+            plan.dirLng = 1;
+            plan.dirLat = (drone.position.lat > plan.maxLat - 0.00008) ? -1 : (drone.position.lat < plan.minLat + 0.00008) ? 1 : plan.dirLat;
+            targetHeading = plan.dirLat > 0 ? 0 : 180;
+            plan.hoverTimer = 12;
+          } else {
+            // Straight sweep line
+            targetHeading = plan.dirLng > 0 ? 90 : 270;
+            targetSpeed = plan.cruiseSpeed;
+          }
+        }
+      } 
+      else { // RASTER_NS
+        currentState = 'FORAGING_SCOUT';
+        currentGoal = `Sector Raster: North-South rubble sweep (Col ${Math.round((drone.position.lng - minLng) * 10000)})`;
+
+        if (plan.hoverTimer > 0) {
+          plan.hoverTimer -= 1;
+          targetSpeed = 0.8;
+          targetHeading = (drone.heading + 4) % 360;
+        } else {
+          if (plan.dirLat > 0 && drone.position.lat >= plan.maxLat - 0.00008) {
+            plan.dirLat = -1;
+            plan.dirLng = (drone.position.lng > plan.maxLng - 0.00008) ? -1 : (drone.position.lng < plan.minLng + 0.00008) ? 1 : plan.dirLng;
+            targetHeading = plan.dirLng > 0 ? 90 : 270;
+            plan.hoverTimer = 12;
+          } else if (plan.dirLat < 0 && drone.position.lat <= plan.minLat + 0.00008) {
+            plan.dirLat = 1;
+            plan.dirLng = (drone.position.lng > plan.maxLng - 0.00008) ? -1 : (drone.position.lng < plan.minLng + 0.00008) ? 1 : plan.dirLng;
+            targetHeading = plan.dirLng > 0 ? 90 : 270;
+            plan.hoverTimer = 12;
+          } else {
+            targetHeading = plan.dirLat > 0 ? 0 : 180;
+            targetSpeed = plan.cruiseSpeed;
+          }
+        }
+      }
+
+      // ── Smooth Coordinated Anti-Clustering (Artificial Potential Fields) ──
+      const neighborIds: string[] = [];
       for (const other of this.drones) {
         if (other.id !== drone.id) {
           const dLat = other.position.lat - drone.position.lat;
           const dLng = other.position.lng - drone.position.lng;
-          const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+          const dist = Math.hypot(dLat, dLng);
 
-          if (dist < 0.007) {
+          if (dist < 0.00025) {
             neighborIds.push(other.id);
           }
 
-          // Anti-Clustering Repulsion for Interior Drones: Strong distance-inverse vector
-          if (drone.zoneAssignment === 'INTERIOR_CORE' && other.zoneAssignment === 'INTERIOR_CORE' && dist < 0.0055 && dist > 0.00001) {
-            isClustered = true;
-            // Vector pointing away from the other drone
-            repulsionVecX += -(dLng / (dist * dist));
-            repulsionVecY += -(dLat / (dist * dist));
+          // Gentle separation bias if closer than 14m
+          if (dist < 0.00013 && dist > 0.00001) {
+            const avoidHeading = ((Math.atan2(-dLng, -dLat) * 180) / Math.PI + 360) % 360;
+            const diff = (avoidHeading - targetHeading + 540) % 360 - 180;
+            targetHeading = (targetHeading + diff * 0.35 + 360) % 360;
           }
         }
       }
 
-      // Check priority states
-      if (drone.status === 'ENGAGED') {
-        const victim = this.triageEvents.find(t => t.assignedDroneId?.includes(drone.id) && t.rescueStatus !== 'RESCUED');
-        if (victim) {
-          const dLat = victim.location.lat - drone.position.lat;
-          const dLng = victim.location.lng - drone.position.lng;
-          const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-
-          if (dist > 0.0004) {
-            targetHeading = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
-            targetSpeed = 24.0;
-            currentState = 'FOLLOWING_TRAIL';
-            sensedRecruitment = 0.95;
-            currentGoal = `Intercept trajectory to casualty ${victim.id}`;
-          } else {
-            targetHeading = (drone.heading + 18) % 360;
-            targetSpeed = 4.0;
-            currentState = 'RECRUITING_SWARM';
-            sensedRecruitment = 1.0;
-            currentGoal = `Stationary hover orbit over ${victim.id}`;
-          }
-        }
-      } else if (drone.status === 'LOW BATT' || drone.battery.level < 25) {
-        const dLat = BASE_CENTER.lat - drone.position.lat;
-        const dLng = BASE_CENTER.lng - drone.position.lng;
-        targetHeading = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
-        targetSpeed = 16.0;
-        currentState = 'RETURNING_NEST';
-        sensedRepulsion = 0.7;
-        currentGoal = 'Low-battery return to home nest pad';
-      } else if (drone.zoneAssignment === 'PERIMETER_RING') {
-        // PERIMETER RING DRONES: Smooth outer boundary patrol loop
-        targetSpeed = 21.0;
-        currentState = 'FORAGING_SCOUT';
-        
-        // Circular perimeter patrol orbit around regional center (radius ~0.022)
-        const dLat = drone.position.lat - BASE_CENTER.lat;
-        const dLng = drone.position.lng - BASE_CENTER.lng;
-        const angle = Math.atan2(dLng, dLat);
-        const tangentAngle = ((angle + Math.PI / 2) * 180) / Math.PI;
-        targetHeading = (tangentAngle + 360) % 360;
-        currentGoal = `Perimeter Ring: Outer boundary surveillance patrol`;
-      } else {
-        // =====================================================================
-        // 6 INTERIOR CORE DRONES: Stochastic Ant Colony System Foraging
-        // With Active Dispersion and ZERO Clustering
-        // =====================================================================
-        targetSpeed = 16.5 + (idx % 3) * 2.0; // 16.5 to 20.5 m/s active search speed
-        currentState = 'FORAGING_SCOUT';
-
-        const latDist = drone.position.lat - BASE_CENTER.lat;
-        const lngDist = drone.position.lng - BASE_CENTER.lng;
-
-        if (isClustered && (Math.abs(repulsionVecX) > 0.001 || Math.abs(repulsionVecY) > 0.001)) {
-          // 1. ANTI-CLUSTERING REPULSION: Instantly steer away from peer ant swarm cluster
-          const repulsionAngle = ((Math.atan2(repulsionVecX, repulsionVecY) * 180) / Math.PI + 360) % 360;
-          targetHeading = repulsionAngle;
-          sensedRepulsion = 0.85;
-          currentGoal = 'ACS Anti-Clustering: Dispersing away from peer drones';
-        } else if (Math.abs(latDist) > 0.012 || Math.abs(lngDist) > 0.015) {
-          // 2. INTERIOR BOUNDARY REFLECTION: Soft bounce back towards interior center
-          const inwardAngle = ((Math.atan2(-lngDist, -latDist) * 180) / Math.PI + (Math.random() * 50 - 25) + 360) % 360;
-          targetHeading = inwardAngle;
-          currentGoal = 'ACS Boundary Inward Redirection Vector';
-        } else {
-          // 3. STOCHASTIC ACS RANDOM FORAGING (Momentum-preserved Levy walk)
-          // Continues on current heading with smooth stochastic adjustments
-          if (Math.random() > 0.70) {
-            const randomDelta = (Math.random() * 60 - 30); // Random turn -30° to +30°
-            targetHeading = (drone.heading + randomDelta + 360) % 360;
-          }
-          currentGoal = 'ACS Stochastic Foraging: Unexplored void rastering';
-        }
-      }
-
-      // Smooth heading angle interpolation (no snappy teleporting)
+      // ── Realistic Aerodynamic Turn Kinematics (Banked Turn Rate Limit) ──
       const headingDiff = (targetHeading - drone.heading + 540) % 360 - 180;
-      const newHeading = (drone.heading + headingDiff * 0.28 + 360) % 360;
+      // Max 14 degrees per 100ms tick = smooth, realistic 140 deg/s coordinated turn
+      const maxTurn = 14;
+      const turnStep = Math.max(-maxTurn, Math.min(maxTurn, headingDiff * 0.18));
+      const newHeading = (drone.heading + turnStep + 360) % 360;
 
-      // Coordinate advancement
-      const speedMagnitude = (targetSpeed / 3.6) * 0.0000065;
+      // ── Smooth Speed Acceleration / Deceleration ──
+      const speedDiff = targetSpeed - drone.groundSpeed;
+      const newSpeed = drone.groundSpeed + Math.max(-0.6, Math.min(0.6, speedDiff * 0.2));
+
+      // ── Smooth Altitude Loiter Variation ──
+      const altDiff = targetAlt - drone.position.altitude;
+      const newAltitude = Math.round((drone.position.altitude + altDiff * 0.08 + Math.sin((this.tickCounter + idx * 7) * 0.05) * 0.08) * 10) / 10;
+
+      // ── Coordinate Step Advance (100ms tick) ──
+      const speedMagnitude = (newSpeed / 3.6) * 0.00000095;
       const angleRad = (newHeading * Math.PI) / 180;
-      const nextLat = drone.position.lat + Math.cos(angleRad) * speedMagnitude;
-      const nextLng = drone.position.lng + Math.sin(angleRad) * speedMagnitude;
+      let nextLat = drone.position.lat + Math.cos(angleRad) * speedMagnitude;
+      let nextLng = drone.position.lng + Math.sin(angleRad) * speedMagnitude;
 
-      // Realistic slow battery drain
-      const newBatt = Math.max(5, parseFloat((drone.battery.level - 0.008).toFixed(2)));
-      const isLow = newBatt < 25;
+      // ── 100% Strict Hard Geofence Containment Clamp ──
+      const hardMinLat = minLat + 0.00004;
+      const hardMaxLat = maxLat - 0.00004;
+      const hardMinLng = minLng + 0.00004;
+      const hardMaxLng = maxLng - 0.00004;
 
-      const perCellV = parseFloat((3.5 + (newBatt / 100) * 0.7).toFixed(2));
-      const cellVoltages: [number, number, number, number, number, number] = [
-        perCellV,
-        parseFloat((perCellV + (Math.random() * 0.02 - 0.01)).toFixed(2)),
-        perCellV,
-        parseFloat((perCellV + (Math.random() * 0.02 - 0.01)).toFixed(2)),
-        perCellV,
-        perCellV
-      ];
+      if (nextLat < hardMinLat || nextLat > hardMaxLat || nextLng < hardMinLng || nextLng > hardMaxLng) {
+        nextLat = Math.max(hardMinLat, Math.min(hardMaxLat, nextLat));
+        nextLng = Math.max(hardMinLng, Math.min(hardMaxLng, nextLng));
+        // Reverse direction smoothly
+        plan.dirLat *= -1;
+        plan.dirLng *= -1;
+      }
 
-      const rssiDelta = (Math.random() * 1.5 - 0.75);
-      const newRssi = Math.min(-45, Math.max(-92, Math.round(drone.link.rssi + rssiDelta)));
-
-      const baseRpm = 5600 + Math.round(targetSpeed * 100);
-      const motorRpm: [number, number, number, number] = [
-        baseRpm + Math.round(Math.random() * 40 - 20),
-        baseRpm + Math.round(Math.random() * 40 - 20),
-        baseRpm + Math.round(Math.random() * 40 - 20),
-        baseRpm + Math.round(Math.random() * 40 - 20)
-      ];
+      // Battery slow realistic drain
+      const newBatt = Math.max(5, parseFloat((drone.battery.level - 0.0007).toFixed(2)));
 
       return {
         ...drone,
-        status: isLow && drone.status !== 'ENGAGED' ? 'LOW BATT' : drone.status,
         position: {
-          lat: nextLat,
-          lng: nextLng,
-          altitude: Math.round(drone.position.altitude + (Math.random() * 0.8 - 0.4))
+          ...drone.position,
+          lat: Number(nextLat.toFixed(7)),
+          lng: Number(nextLng.toFixed(7)),
+          altitude: newAltitude
         },
         heading: Math.round(newHeading),
-        groundSpeed: parseFloat(targetSpeed.toFixed(1)),
-        verticalSpeed: parseFloat((Math.random() * 0.4 - 0.2).toFixed(1)),
-        motorRpm,
-        flightTimeSec: drone.flightTimeSec + 1,
-        distanceTraveledM: drone.distanceTraveledM + Math.round(targetSpeed * 0.5),
-        perception: {
-          sensedPheromoneGradient: {
-            recruitmentDelta: sensedRecruitment,
-            repulsionDelta: sensedRepulsion,
-            highestTrailAngle: Math.round(targetHeading),
-            localDecayRate: 0.015
-          },
-          nearbyDronesCount: neighborIds.length,
-          neighborIds,
-          localObstacleDetected: Math.random() > 0.98,
-          obstacleDistanceM: parseFloat((40 + Math.random() * 60).toFixed(1)),
-          localThermalHotspot: sensedRecruitment > 0.6,
-          thermalDeltaC: parseFloat((sensedRecruitment * 18.0 + Math.random() * 0.5).toFixed(1)),
-          currentStigmergicState: currentState,
-          autonomousGoal: currentGoal
-        },
+        groundSpeed: Number(newSpeed.toFixed(1)),
         battery: {
           ...drone.battery,
           level: newBatt,
-          isLow,
-          voltage: parseFloat((cellVoltages.reduce((a, b) => a + b, 0)).toFixed(1)),
-          temperature: parseFloat((drone.battery.temperature + (Math.random() * 0.08 - 0.04)).toFixed(1)),
-          cellVoltages
         },
-        link: {
-          ...drone.link,
-          rssi: newRssi,
-          snr: parseFloat((drone.link.snr + (Math.random() * 0.2 - 0.1)).toFixed(1))
+        perception: {
+          ...drone.perception,
+          nearbyDronesCount: neighborIds.length,
+          neighborIds,
+          currentStigmergicState: currentState,
+          autonomousGoal: currentGoal,
         }
       };
     });
 
-    // -------------------------------------------------------------------------
-    // 2. GROUND HEXAPOD ROBOTS SIMULATION: 6 Autonomous Boundary Anchors
-    // -------------------------------------------------------------------------
+    // 2. UPDATE 6 GROUND HEXAPODS (Realistic Stepped Crawl with Seismic Listening Stops)
     this.hexapods = this.hexapods.map((hexa, idx) => {
       let nextHeading = hexa.heading;
-      let crawlSpeed = hexa.crawlSpeed;
+      let nextLat = hexa.position.lat;
+      let nextLng = hexa.position.lng;
+      let nextStatus = hexa.status;
 
-      if (hexa.status === 'PATROLLING_PERIMETER') {
-        crawlSpeed = 1.0;
-        if (Math.random() > 0.92) {
-          nextHeading = (hexa.heading + (Math.random() * 30 - 15) + 360) % 360;
-        }
-      } else if (hexa.status === 'ANCHORED') {
-        crawlSpeed = 0.0;
-      } else if (hexa.status === 'INFILTRATING_RUBBLE') {
-        crawlSpeed = 0.4;
-      }
+      // Hexapod infiltration crawl
+      if (hexa.status === 'INFILTRATING_RUBBLE') {
+        const targetVictim = this.triageEvents.find(t => t.rescueStatus === 'INFILTRATING');
+        if (targetVictim) {
+          const dLat = targetVictim.location.lat - hexa.position.lat;
+          const dLng = targetVictim.location.lng - hexa.position.lng;
+          const dist = Math.hypot(dLat, dLng);
 
-      const moveMag = (crawlSpeed / 3.6) * 0.0000008;
-      const angleRad = (nextHeading * Math.PI) / 180;
-      const nextLat = hexa.position.lat + Math.cos(angleRad) * moveMag;
-      const nextLng = hexa.position.lng + Math.sin(angleRad) * moveMag;
-
-      const baseAngle = 48;
-      const servoJitter = Math.sin(Date.now() / 300 + idx) * 6;
-      const legServoAnglesDeg: [number, number, number, number, number, number] = [
-        Math.round(baseAngle + servoJitter),
-        Math.round(baseAngle - servoJitter),
-        Math.round(baseAngle + servoJitter * 0.8),
-        Math.round(baseAngle - servoJitter * 0.8),
-        Math.round(baseAngle + servoJitter * 1.1),
-        Math.round(baseAngle - servoJitter * 1.1)
-      ];
-
-      const vibrationMmS = parseFloat(Math.max(0.2, Math.min(4.5, hexa.seismicAcoustic.vibrationMmS + (Math.random() * 0.1 - 0.05))).toFixed(2));
-      const acousticDecibels = Math.round(Math.max(20, Math.min(80, hexa.seismicAcoustic.acousticDecibels + (Math.random() * 2 - 1))));
-      const newBatt = Math.max(12, parseFloat((hexa.battery.level - 0.004).toFixed(2)));
-
-      return {
-        ...hexa,
-        position: {
-          ...hexa.position,
-          lat: nextLat,
-          lng: nextLng,
-          terrainSlopeDeg: Math.round(hexa.position.terrainSlopeDeg + (Math.random() * 0.4 - 0.2))
-        },
-        heading: Math.round(nextHeading),
-        crawlSpeed,
-        legServoAnglesDeg,
-        stepCycleCount: hexa.stepCycleCount + (crawlSpeed > 0 ? 1 : 0),
-        seismicAcoustic: {
-          ...hexa.seismicAcoustic,
-          vibrationMmS,
-          acousticDecibels
-        },
-        battery: {
-          ...hexa.battery,
-          level: newBatt
-        }
-      };
-    });
-
-    // -------------------------------------------------------------------------
-    // 3. PHEROMONE & SLOPE RISK MATRIX
-    // -------------------------------------------------------------------------
-    this.pheromoneGrid = this.pheromoneGrid.map(cell => {
-      let addedCoverage = 0;
-      let addedRecruitment = 0;
-
-      for (const drone of this.drones) {
-        const latDist = Math.abs(drone.position.lat - (cell.bounds.south + cell.bounds.north) / 2);
-        const lngDist = Math.abs(drone.position.lng - (cell.bounds.west + cell.bounds.east) / 2);
-        if (latDist < 0.0025 && lngDist < 0.0035) {
-          addedCoverage += 0.25;
-          const nearVictim = this.triageEvents.some(t => {
-            return Math.abs(t.location.lat - drone.position.lat) < 0.0035 &&
-                   Math.abs(t.location.lng - drone.position.lng) < 0.0045;
-          });
-          if (nearVictim) {
-            addedRecruitment += 0.45;
+          if (dist > 0.00002) {
+            nextHeading = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
+            const angleRad = (nextHeading * Math.PI) / 180;
+            // Realistic deliberate ground crawl speed (~0.6 m/s)
+            nextLat += Math.cos(angleRad) * 0.00000012;
+            nextLng += Math.sin(angleRad) * 0.00000012;
           }
         }
       }
 
-      const coverageScore = Math.min(1.0, parseFloat((cell.coverageScore + addedCoverage).toFixed(2)));
-      const recruitmentLevel = Math.max(0, Math.min(1.0, parseFloat((cell.recruitmentLevel * 0.988 + addedRecruitment).toFixed(2))));
-
       return {
-        ...cell,
-        coverageScore,
-        recruitmentLevel,
-        lastUpdated: addedCoverage > 0 ? Date.now() : cell.lastUpdated
+        ...hexa,
+        status: nextStatus,
+        position: {
+          ...hexa.position,
+          lat: Number(nextLat.toFixed(7)),
+          lng: Number(nextLng.toFixed(7)),
+        },
+        heading: Math.round(nextHeading)
       };
     });
 

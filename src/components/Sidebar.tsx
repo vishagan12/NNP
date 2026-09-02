@@ -1,24 +1,20 @@
 import React from 'react';
-import { 
-  Map, 
-  Cpu, 
-  Heart, 
-  Radio, 
-  BarChart3, 
-  Layers, 
-  History, 
+import {
+  Map,
+  Cpu,
+  Heart,
+  BarChart3,
+  History,
   BrainCircuit,
-  Activity,
   Wifi,
-  Shield
 } from 'lucide-react';
 
-export type NavTab = 
-  | 'dashboard' 
-  | 'triage-list' 
-  | 'drone-detail' 
-  | 'swarm-metrics' 
-  | 'reason-trace' 
+export type NavTab =
+  | 'dashboard'
+  | 'triage-list'
+  | 'drone-detail'
+  | 'swarm-metrics'
+  | 'reason-trace'
   | 'mission-playback';
 
 interface SidebarProps {
@@ -37,112 +33,140 @@ export const Sidebar: React.FC<SidebarProps> = ({
   criticalTriageCount,
   activeDronesCount,
   activeHexapodsCount = 6,
-  missionMode,
-  onToggleMode
 }) => {
-  const navItems: { id: NavTab; label: string; sublabel: string; icon: React.FC<{ className?: string }>; badge?: string; badgeColor?: string }[] = [
-    { 
-      id: 'dashboard', 
-      label: 'Live Tactical Radar', 
-      sublabel: 'Hexapod Geofence & Map',
-      icon: Map 
-    },
-    { 
-      id: 'triage-list', 
-      label: 'Casualty Triage Hub', 
-      sublabel: 'Rubble Void & Landslide',
-      icon: Heart,
-      badge: criticalTriageCount > 0 ? `${criticalTriageCount} Entrapped` : 'Clear',
-      badgeColor: criticalTriageCount > 0 ? 'bg-[#ff4b1f]/20 text-[#ff4b1f] border-[#ff4b1f]/50 animate-pulse' : 'bg-emerald-950/60 text-emerald-400 border-emerald-700/50'
-    },
-    { 
-      id: 'drone-detail', 
-      label: 'Air-Ground Fleet Telemetry', 
-      sublabel: `${activeDronesCount} UAVs + ${activeHexapodsCount} Hexapods`,
-      icon: Cpu,
-      badge: `${activeDronesCount + activeHexapodsCount} Active`,
-      badgeColor: 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40'
-    },
-    { 
-      id: 'swarm-metrics', 
-      label: 'ACS & Seismic Analytics', 
-      sublabel: 'Geofence & Shear Stats',
-      icon: BarChart3 
-    },
-    { 
-      id: 'reason-trace', 
-      label: 'Edge AI Reasoning', 
-      sublabel: 'Seismic & Void Fusion',
-      icon: BrainCircuit 
-    },
-    { 
-      id: 'mission-playback', 
-      label: 'Blackbox Mission Replay', 
-      sublabel: '150s Air-Ground Buffer',
-      icon: History 
-    },
-  ];
+  type BadgeVariant = 'critical' | 'info' | 'ok';
+
+  const navItems: {
+    id: NavTab;
+    label: string;
+    sublabel: string;
+    icon: React.FC<{ className?: string; size?: number }>;
+    badge?: string;
+    variant?: BadgeVariant;
+  }[] = [
+      { id: 'dashboard', label: 'Tactical Map', sublabel: 'Live Satellite View', icon: Map },
+      {
+        id: 'triage-list', label: 'Casualty Triage', sublabel: 'Rescue Queue & Dispatch', icon: Heart,
+        badge: criticalTriageCount > 0 ? `${criticalTriageCount} Critical` : 'Clear',
+        variant: criticalTriageCount > 0 ? 'critical' : 'ok'
+      },
+      {
+        id: 'drone-detail', label: 'Fleet Telemetry', sublabel: `${activeDronesCount + activeHexapodsCount} Units Active`, icon: Cpu,
+        badge: `${activeDronesCount + activeHexapodsCount}`,
+        variant: 'info'
+      },
+      { id: 'swarm-metrics', label: 'ACS Analytics', sublabel: 'Swarm & Seismic Stats', icon: BarChart3 },
+      { id: 'reason-trace', label: 'Edge AI Reasoning', sublabel: 'Multi-Modal Fusion', icon: BrainCircuit },
+      { id: 'mission-playback', label: 'Blackbox Replay', sublabel: '150s Mission Buffer', icon: History },
+    ];
+
+  const badgeStyle: Record<BadgeVariant, React.CSSProperties> = {
+    critical: { background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)' },
+    info: { background: 'rgba(6,182,212,0.12)', color: '#67e8f9', border: '1px solid rgba(6,182,212,0.35)' },
+    ok: { background: 'rgba(16,185,129,0.12)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' },
+  };
 
   return (
-    <aside className="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0d0f16]/95 backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between select-none z-40">
-      {/* Navigation Modules */}
-      <div className="p-3 space-y-1 overflow-y-auto">
-        <div className="px-3 py-1.5 text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">
-          Tactical Command Views
-        </div>
-
-        <div className="space-y-1.5">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-[#ff6b2c] to-[#ff4b1f] text-white font-bold shadow-[0_4px_20px_rgba(255,107,44,0.4)]'
-                    : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3 text-left">
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-[#ff6b2c]'}`} />
-                  <div>
-                    <div className="text-xs font-semibold tracking-tight">{item.label}</div>
-                    <div className={`text-[10px] font-mono ${isActive ? 'text-white/80' : 'text-slate-500'}`}>
-                      {item.sublabel}
-                    </div>
-                  </div>
-                </div>
-
-                {item.badge && (
-                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${item.badgeColor}`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+    <aside
+      className="fixed left-0 top-[58px] h-[calc(100vh-58px)] w-[220px] flex flex-col justify-between select-none z-40"
+      style={{
+        background: 'rgba(5,7,14,0.98)',
+        backdropFilter: 'blur(24px)',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.6)',
+      }}
+    >
+      {/* Section label */}
+      <div className="px-4 pt-4 pb-2 shrink-0">
+        <span className="font-mono text-[9px] text-slate-600 uppercase tracking-[0.2em] font-bold">
+          Command Views
+        </span>
       </div>
 
-      {/* Mesh Health & Subsystem Footer */}
-      <div className="p-4 border-t border-white/10 bg-[#090b10]/90 space-y-3">
-        <div className="flex items-center justify-between font-mono text-[10px] text-slate-400">
-          <span className="flex items-center gap-1.5">
-            <Wifi className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            NNP AIR-GROUND MESH
-          </span>
-          <span className="text-emerald-400 font-bold">99.4%</span>
+      {/* Nav items */}
+      <nav className="flex-1 px-2 pb-2 space-y-0.5 overflow-y-auto overflow-x-hidden scrollbar-none">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl transition-all group"
+              style={isActive ? {
+                background: 'rgba(255,107,44,0.12)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,107,44,0.35)',
+              } : { background: 'transparent' }}
+            >
+              {/* Icon box */}
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all"
+                style={isActive
+                  ? { background: 'rgba(255,107,44,0.18)', boxShadow: '0 0 10px rgba(255,107,44,0.25)' }
+                  : { background: 'rgba(255,255,255,0.04)' }
+                }
+              >
+                <Icon
+                  size={14}
+                  className={`transition-colors ${isActive ? 'text-orange-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                />
+              </div>
+
+              {/* Labels */}
+              <div className="flex-1 min-w-0 text-left">
+                <div className={`text-[11.5px] font-semibold leading-tight truncate transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                  {item.label}
+                </div>
+                <div className={`text-[9px] font-mono leading-tight mt-0.5 truncate transition-colors ${isActive ? 'text-orange-300/65' : 'text-slate-600 group-hover:text-slate-500'}`}>
+                  {item.sublabel}
+                </div>
+              </div>
+
+              {/* Badge */}
+              {item.badge && item.variant && (
+                <span
+                  className="shrink-0 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap"
+                  style={badgeStyle[item.variant]}
+                >
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Mesh health footer */}
+      <div
+        className="px-4 py-3 shrink-0 border-t"
+        style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.25)' }}
+      >
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5 font-mono text-[9px] text-slate-500">
+            <Wifi size={10} className="text-emerald-400 animate-pulse" />
+            <span>MESH LINK</span>
+          </div>
+          <span className="font-mono text-[10px] font-bold text-emerald-400">99.4%</span>
         </div>
 
-        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-[#ff6b2c] w-[99.4%] shadow-[0_0_8px_#ff6b2c]"></div>
+        {/* Health bar */}
+        <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <div className="h-full rounded-full" style={{
+            width: '99.4%',
+            background: 'linear-gradient(90deg, #10b981, #06b6d4, #ff6b2c)',
+            boxShadow: '0 0 6px rgba(16,185,129,0.5)'
+          }} />
         </div>
 
-        <div className="flex justify-between text-[9px] font-mono text-slate-500">
-          <span>LATENCY: 12ms</span>
-          <span>NODES: 16 UNITS</span>
+        <div className="flex justify-between font-mono text-[8px] text-slate-700">
+          <span>LAT 12ms</span>
+          <span>16 NODES</span>
+        </div>
+
+        <div className="mt-2 px-2 py-1 rounded-lg text-center font-mono text-[8px] text-slate-700 border"
+          style={{ borderColor: 'rgba(255,255,255,0.04)', background: 'rgba(255,255,255,0.02)' }}
+        >
+          OP-SEISMIC-RECON-7 · ACS v5.0
         </div>
       </div>
     </aside>
