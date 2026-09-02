@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DroneTelemetry, HexapodTelemetry, TriageEvent, PheromoneCell, AlertEntry } from '../types';
+import { DroneTelemetry, HexapodTelemetry, TriageEvent, PheromoneCell, AlertEntry, MissionLocation, RescueRoute } from '../types';
 import { TacticalMap } from './TacticalMap';
 import { 
   Battery, 
@@ -19,6 +19,9 @@ interface DashboardViewProps {
   triageEvents: TriageEvent[];
   pheromoneGrid: PheromoneCell[];
   alerts: AlertEntry[];
+  rescueRoutes?: RescueRoute[];
+  currentLocation?: MissionLocation;
+  onSelectLocation?: (location: MissionLocation) => void;
   selectedDroneId: string | null;
   onSelectDrone: (droneId: string) => void;
   selectedHexapodId?: string | null;
@@ -36,6 +39,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   hexapods,
   triageEvents,
   pheromoneGrid,
+  rescueRoutes,
+  currentLocation,
+  onSelectLocation,
   selectedDroneId,
   onSelectDrone,
   selectedHexapodId,
@@ -106,60 +112,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="flex flex-col gap-1.5 h-[calc(100vh-74px)] overflow-hidden">
 
       {/* ══════════════════════════════════════════════════════ */}
-      {/* 1. EARTHQUAKE HAZARD ALERT BANNER                     */}
-      {/* ══════════════════════════════════════════════════════ */}
-      <div
-        className="rounded-xl px-4 py-1.5 flex items-center justify-between shrink-0 border"
-        style={{
-          background: 'linear-gradient(135deg, rgba(17,10,10,0.9) 0%, rgba(30,12,12,0.95) 50%, rgba(17,10,10,0.9) 100%)',
-          borderColor: 'rgba(239,68,68,0.25)',
-          boxShadow: '0 4px 24px rgba(239,68,68,0.1), inset 0 1px 0 rgba(255,255,255,0.03)'
-        }}
-      >
-        {/* Left: Earthquake info */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 critical-pulse border"
-            style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.15)' }}
-          >
-            <AlertTriangle size={16} className="text-red-400 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 leading-none mb-0.5">
-              <span className="text-[11px] font-bold text-white uppercase tracking-widest font-mono">
-                ACTIVE HAZARD: EARTHQUAKE M7.2
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold border"
-                style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#f87171', background: 'rgba(239,68,68,0.12)' }}
-              >
-                SECTOR 7-G · STRUCTURAL COLLAPSE
-              </span>
-            </div>
-            <span className="text-[9px] font-mono text-slate-500">
-              PGA: 0.48g · Multi-Wing Slab Void · Gas Plume Isolation · 4 Confirmed Casualties
-            </span>
-          </div>
-        </div>
-
-        {/* Right: Threat metrics */}
-        <div className="hidden lg:flex items-center gap-4 font-mono">
-          <div className="text-right">
-            <div className="text-[8px] text-slate-600 uppercase tracking-wider">STRUCTURAL</div>
-            <div className="text-[11px] font-bold text-red-400">24% CRITICAL</div>
-          </div>
-          <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <div className="text-right">
-            <div className="text-[8px] text-slate-600 uppercase tracking-wider">AFTERSHOCK</div>
-            <div className="text-[11px] font-bold text-amber-400">68% RISK</div>
-          </div>
-          <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <div className="text-right">
-            <div className="text-[8px] text-slate-600 uppercase tracking-wider">GEOFENCE</div>
-            <div className="text-[11px] font-bold text-cyan-400">LOCKED</div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════ */}
       {/* 2. INFINITE SCROLLING SWARM TICKER                    */}
       {/* ══════════════════════════════════════════════════════ */}
       <div
@@ -211,9 +163,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         : 'hover:bg-white/5'
                     }`}
                     style={isSelected ? {
-                      background: isUAV ? 'rgba(255,107,44,0.22)' : 'rgba(6,182,212,0.22)',
-                      border: isUAV ? '1px solid #ff6b2c' : '1px solid #06b6d4',
-                      boxShadow: isUAV ? '0 0 14px rgba(255,107,44,0.45)' : '0 0 14px rgba(6,182,212,0.45)'
+                      background: isUAV ? 'rgba(255,107,44,0.22)' : 'rgba(168,85,247,0.22)',
+                      border: isUAV ? '1px solid #ff6b2c' : '1px solid #a855f7',
+                      boxShadow: isUAV ? '0 0 14px rgba(255,107,44,0.45)' : '0 0 14px rgba(168,85,247,0.45)'
                     } : {
                       background: 'rgba(15,18,30,0.85)',
                       border: '1px solid rgba(255,255,255,0.06)'
@@ -223,7 +175,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span
                       className="w-1.5 h-1.5 rounded-full shrink-0"
                       style={{
-                        background: isUAV ? '#ff6b2c' : '#06b6d4',
+                        background: isUAV ? '#ff6b2c' : '#a855f7',
                         boxShadow: isUAV ? '0 0 6px #ff6b2c' : '0 0 6px #06b6d4'
                       }}
                     />
@@ -237,8 +189,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span
                       className="text-[8px] font-bold px-1 rounded uppercase tracking-wider"
                       style={{
-                        background: isUAV ? 'rgba(255,107,44,0.15)' : 'rgba(6,182,212,0.15)',
-                        color: isUAV ? '#fb923c' : '#67e8f9'
+                        background: isUAV ? 'rgba(255,107,44,0.15)' : 'rgba(168,85,247,0.18)',
+                        color: isUAV ? '#fb923c' : '#c084fc'
                       }}
                     >
                       {unit.tag}
@@ -288,6 +240,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           hexapods={hexapods}
           triageEvents={triageEvents}
           pheromoneGrid={pheromoneGrid}
+          rescueRoutes={rescueRoutes}
+          currentLocation={currentLocation}
+          onSelectLocation={onSelectLocation}
           selectedDroneId={selectedDroneId}
           onSelectDrone={onSelectDrone}
           selectedHexapodId={selectedHexapodId}
@@ -329,7 +284,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <Clock size={11} className="text-cyan-400 shrink-0" />
             <div>
-              <div className="text-[7px] text-slate-600 uppercase leading-none tracking-wider">ACTUAL</div>
+              <div className="text-[7px] text-slate-300 font-semibold uppercase leading-none tracking-wider">ACTUAL</div>
               <div className="text-[11px] font-bold text-white leading-tight tracking-wider">{actualTime}</div>
             </div>
           </div>
@@ -340,7 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <Zap size={12} className="text-orange-400 shrink-0" />
             <div>
-              <div className="text-[7.5px] text-slate-600 uppercase leading-none tracking-wider">MISSION T+</div>
+              <div className="text-[7.5px] text-slate-300 font-semibold uppercase leading-none tracking-wider">MISSION T+</div>
               <div className="text-[12px] font-bold text-orange-400 leading-tight tracking-wider">{formatTime(replayTimeSec)}</div>
             </div>
           </div>
@@ -348,7 +303,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Center: Scrubber */}
         <div className="flex-1 flex items-center gap-2 min-w-0">
-          <span className="font-mono text-[9px] text-slate-600 shrink-0">00:00</span>
+          <span className="font-mono text-[9px] text-slate-300 font-semibold shrink-0">00:00</span>
           
           <div className="relative flex-1 flex items-center">
             {/* Track background */}
@@ -373,7 +328,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             />
           </div>
 
-          <span className="font-mono text-[9px] text-slate-600 shrink-0">02:30</span>
+          <span className="font-mono text-[9px] text-slate-300 font-semibold shrink-0">02:30</span>
         </div>
 
         {/* Right: Transport controls */}
@@ -384,7 +339,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <button
               onClick={() => setReplayTimeSec(Math.max(0, replayTimeSec - 10))}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               title="Back 10s"
             >
               <SkipBack size={12} />
@@ -401,7 +356,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               onClick={() => setReplayTimeSec(Math.min(150, replayTimeSec + 10))}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               title="Fwd 10s"
             >
               <SkipForward size={12} />
@@ -417,7 +372,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 key={spd}
                 onClick={() => setPlaybackSpeed(spd)}
                 className={`px-2 py-1 rounded text-[9.5px] font-bold transition-all ${
-                  playbackSpeed === spd ? 'text-orange-400 shadow-inner' : 'text-slate-500 hover:text-slate-300'
+                  playbackSpeed === spd ? 'text-orange-400 shadow-inner' : 'text-slate-300 hover:text-white'
                 }`}
                 style={playbackSpeed === spd ? { background: 'rgba(255,107,44,0.18)' } : {}}
               >

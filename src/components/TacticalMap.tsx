@@ -7,16 +7,34 @@ import {
   Rectangle, 
   Polygon, 
   Polyline, 
+  CircleMarker, 
   ZoomControl,
   useMap,
   useMapEvents
 } from 'react-leaflet';
 import L from 'leaflet';
-import { DroneTelemetry, HexapodTelemetry, TriageEvent, PheromoneCell } from '../types';
+import { 
+  DroneTelemetry, 
+  HexapodTelemetry, 
+  TriageEvent, 
+  PheromoneCell, 
+  MissionLocation,
+  RescueRoute
+} from '../types';
+import { MISSION_LOCATIONS, INITIAL_RESCUE_ROUTES } from '../data/mockData';
 import { 
   Compass, 
-  ZoomOut,
-  Map
+  ZoomOut, 
+  Radio, 
+  Layers, 
+  Globe, 
+  Moon, 
+  Navigation, 
+  Crosshair, 
+  Route, 
+  Eye, 
+  Shield, 
+  Activity 
 } from 'lucide-react';
 
 interface TacticalMapProps {
@@ -24,6 +42,9 @@ interface TacticalMapProps {
   hexapods: HexapodTelemetry[];
   triageEvents: TriageEvent[];
   pheromoneGrid: PheromoneCell[];
+  rescueRoutes?: RescueRoute[];
+  currentLocation?: MissionLocation;
+  onSelectLocation?: (location: MissionLocation) => void;
   selectedDroneId: string | null;
   onSelectDrone: (droneId: string) => void;
   selectedHexapodId?: string | null;
@@ -76,7 +97,7 @@ const MAP_LAYERS = {
 type LayerKey = keyof typeof MAP_LAYERS;
 
 // ---------------------------------------------------------------------------
-// 1. Drone Icon — Quadcopter with heading vector
+// 1. Drone Icon — Bold High-Contrast Tactical Stealth Quadcopter
 // ---------------------------------------------------------------------------
 function createDroneIcon(drone: DroneTelemetry, isSelected: boolean) {
   const isEngaged = drone.status === 'ENGAGED';
@@ -85,32 +106,56 @@ function createDroneIcon(drone: DroneTelemetry, isSelected: boolean) {
 
   const color = isEngaged ? '#ef4444'
     : isLowBatt           ? '#f59e0b'
-    : isPerim             ? '#a855f7'
+    : isPerim             ? '#0284c7'
     :                       '#ff6b2c';
 
-  const size = isSelected ? 48 : 38;
+  const size = isSelected ? 52 : 42;
   const half = size / 2;
+  const unitCode = drone.id.replace('UAV-', 'UAV-');
 
   const html = `
     <div style="width:${size}px;height:${size}px;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      <!-- Selected targeting bracket reticle -->
       ${isSelected ? `
-        <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid ${color};animation:ping 1.2s cubic-bezier(0,0,0.2,1) infinite;opacity:0.8;"></div>
-        <div style="position:absolute;inset:-8px;border-radius:50%;border:1px dashed ${color};animation:spin 4s linear infinite;opacity:0.6;"></div>
+        <div style="position:absolute;inset:-8px;border-radius:50%;border:1.5px dashed ${color};animation:spin 6s linear infinite;opacity:0.85;"></div>
+        <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid ${color};animation:casualtyPulse 2.5s ease-in-out infinite;opacity:0.7;"></div>
       ` : ''}
-      <div style="position:relative;width:${size*0.8}px;height:${size*0.8}px;display:flex;align-items:center;justify-content:center;transform:rotate(${drone.heading}deg);transition:transform 0.15s linear;">
-        <!-- Heading vector -->
-        <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color};"></div>
-        <!-- X Arms -->
-        <div style="position:absolute;width:${size*0.7}px;height:2px;background:rgba(20,28,45,0.95);border-radius:2px;transform:rotate(45deg);border:1px solid rgba(255,255,255,0.3);"></div>
-        <div style="position:absolute;width:${size*0.7}px;height:2px;background:rgba(20,28,45,0.95);border-radius:2px;transform:rotate(-45deg);border:1px solid rgba(255,255,255,0.3);"></div>
-        <!-- 4 Rotors -->
-        <div style="position:absolute;top:0;left:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
-        <div style="position:absolute;top:0;right:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
-        <div style="position:absolute;bottom:0;left:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
-        <div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:${color}33;border:1.5px solid ${color};box-shadow:0 0 6px ${color};"></div>
-        <!-- Center Avionics -->
-        <div style="width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,${color},#0d0f16);border:1px solid rgba(255,255,255,0.9);box-shadow:0 0 10px ${color};"></div>
+
+      <!-- Rotated Airframe Chassis -->
+      <div style="position:relative;width:${size*0.75}px;height:${size*0.75}px;display:flex;align-items:center;justify-content:center;transform:rotate(${drone.heading}deg);transition:transform 0.15s linear;">
+        <!-- Forward Directional Arrow / Chevron with glowing tip -->
+        <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid ${color};filter:drop-shadow(0 0 5px ${color});"></div>
+
+        <!-- High-contrast Heavy-duty Booms (X configuration) -->
+        <div style="position:absolute;width:${size*0.72}px;height:3px;background:#080c14;border-radius:2px;transform:rotate(45deg);border:1px solid ${color};box-shadow:0 0 6px ${color}55;"></div>
+        <div style="position:absolute;width:${size*0.72}px;height:3px;background:#080c14;border-radius:2px;transform:rotate(-45deg);border:1px solid ${color};box-shadow:0 0 6px ${color}55;"></div>
+
+        <!-- 4 Spinning Rotor Pods with Aerodynamic Discs -->
+        <div style="position:absolute;top:-2px;left:-2px;width:12px;height:12px;border-radius:50%;background:${color}25;border:1.5px solid ${color};box-shadow:0 0 8px ${color};">
+          <div style="position:absolute;inset:1px;border-radius:50%;border:1px dashed ${color};animation:rotorSpin 0.25s linear infinite;"></div>
+        </div>
+        <div style="position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:${color}25;border:1.5px solid ${color};box-shadow:0 0 8px ${color};">
+          <div style="position:absolute;inset:1px;border-radius:50%;border:1px dashed ${color};animation:rotorSpin 0.25s linear infinite;"></div>
+        </div>
+        <div style="position:absolute;bottom:-2px;left:-2px;width:12px;height:12px;border-radius:50%;background:${color}25;border:1.5px solid ${color};box-shadow:0 0 8px ${color};">
+          <div style="position:absolute;inset:1px;border-radius:50%;border:1px dashed ${color};animation:rotorSpin 0.25s linear infinite;"></div>
+        </div>
+        <div style="position:absolute;bottom:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:${color}25;border:1.5px solid ${color};box-shadow:0 0 8px ${color};">
+          <div style="position:absolute;inset:1px;border-radius:50%;border:1px dashed ${color};animation:rotorSpin 0.25s linear infinite;"></div>
+        </div>
+
+        <!-- Central Stealth Fuselage Avionics Hub -->
+        <div style="width:13px;height:13px;border-radius:3px;background:radial-gradient(circle, #1a2234 0%, #080a10 100%);border:1.5px solid ${color};box-shadow:0 0 10px ${color};display:flex;align-items:center;justify-content:center;">
+          <div style="width:5px;height:5px;border-radius:50%;background:${color};box-shadow:0 0 6px ${color};"></div>
+        </div>
       </div>
+
+      <!-- On-Hover Tactical Name Tag (Smoothly pops in only when cursor hovers over unit) -->
+      <div class="tactical-hover-tag" style="position:absolute;top:100%;margin-top:7px;left:50%;transform:translateX(-50%);background:rgba(4,8,18,0.96);border:1.5px solid ${color};border-radius:5px;padding:2px 7px;box-shadow:0 0 14px ${color}88, 0 3px 10px rgba(0,0,0,0.9);white-space:nowrap;pointer-events:none;z-index:9999;">
+        <span style="font-family:monospace;font-size:8.5px;font-weight:900;color:#ffffff;letter-spacing:0.04em;">${drone.id}</span>
+        <span style="font-family:monospace;font-size:7.5px;font-weight:700;color:${color};margin-left:4px;">${drone.callsign}</span>
+      </div>
+
     </div>
   `;
 
@@ -126,21 +171,29 @@ function createDroneIcon(drone: DroneTelemetry, isSelected: boolean) {
 // 2. Hexapod Icon — 6-legged ground crawler
 // ---------------------------------------------------------------------------
 function createHexapodIcon(hexa: HexapodTelemetry, isSelected: boolean) {
-  const color = hexa.status === 'ANCHORED' ? '#10b981' : '#06b6d4';
-  const size = isSelected ? 42 : 36;
+  const color = hexa.status === 'ANCHORED' ? '#c084fc' : '#a855f7';
+  const size = isSelected ? 46 : 38;
   const half = size / 2;
+  const unitCode = hexa.id.replace('HEXA-', 'HEX-');
 
   const html = `
     <div style="width:${size}px;height:${size}px;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-      ${isSelected ? `<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid ${color};animation:ping 1.2s cubic-bezier(0,0,0.2,1) infinite;opacity:0.8;"></div>` : ''}
+      ${isSelected ? `<div style="position:absolute;inset:-6px;border-radius:50%;border:1.5px solid ${color};animation:casualtyPulse 2.5s ease-in-out infinite;opacity:0.8;"></div>` : ''}
       <div style="position:relative;width:${size*0.75}px;height:${size*0.75}px;display:flex;align-items:center;justify-content:center;transform:rotate(${hexa.heading}deg);transition:transform 0.15s linear;">
-        <div style="position:absolute;width:${size*0.75}px;height:1.5px;background:${color};border-radius:2px;transform:rotate(30deg);box-shadow:0 0 6px ${color};"></div>
-        <div style="position:absolute;width:${size*0.75}px;height:1.5px;background:${color};border-radius:2px;transform:rotate(90deg);box-shadow:0 0 6px ${color};"></div>
-        <div style="position:absolute;width:${size*0.75}px;height:1.5px;background:${color};border-radius:2px;transform:rotate(150deg);box-shadow:0 0 6px ${color};"></div>
-        <div style="width:12px;height:12px;border-radius:3px;background:rgba(6,30,46,0.95);border:1.5px solid ${color};box-shadow:0 0 8px ${color};display:flex;align-items:center;justify-content:center;">
-          <div style="width:4px;height:4px;border-radius:50%;background:${color};"></div>
+        <div style="position:absolute;width:${size*0.78}px;height:2px;background:${color};border-radius:2px;transform:rotate(30deg);box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;width:${size*0.78}px;height:2px;background:${color};border-radius:2px;transform:rotate(90deg);box-shadow:0 0 6px ${color};"></div>
+        <div style="position:absolute;width:${size*0.78}px;height:2px;background:${color};border-radius:2px;transform:rotate(150deg);box-shadow:0 0 6px ${color};"></div>
+        <div style="width:13px;height:13px;border-radius:3px;background:rgba(22,10,36,0.98);border:1.5px solid ${color};box-shadow:0 0 8px ${color};display:flex;align-items:center;justify-content:center;">
+          <div style="width:5px;height:5px;border-radius:50%;background:${color};box-shadow:0 0 5px ${color};"></div>
         </div>
       </div>
+
+      <!-- On-Hover Tactical Name Tag -->
+      <div class="tactical-hover-tag" style="position:absolute;top:100%;margin-top:7px;left:50%;transform:translateX(-50%);background:rgba(4,8,18,0.96);border:1.5px solid ${color};border-radius:5px;padding:2px 7px;box-shadow:0 0 14px ${color}88, 0 3px 10px rgba(0,0,0,0.9);white-space:nowrap;pointer-events:none;z-index:9999;">
+        <span style="font-family:monospace;font-size:8.5px;font-weight:900;color:#ffffff;letter-spacing:0.04em;">${hexa.id}</span>
+        <span style="font-family:monospace;font-size:7.5px;font-weight:700;color:${color};margin-left:4px;">${hexa.callsign}</span>
+      </div>
+
     </div>
   `;
   return L.divIcon({
@@ -152,21 +205,32 @@ function createHexapodIcon(hexa: HexapodTelemetry, isSelected: boolean) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Triage Icon
+// 3. Triage Casualty Icon — Calm Slow Sonar Pulse (3.5s) & Medical Cross
 // ---------------------------------------------------------------------------
 function createTriageIcon(triage: TriageEvent, isSelected: boolean) {
   const rescued  = triage.rescueStatus === 'RESCUED';
   const critical = triage.severity === 'CRITICAL';
   const color    = rescued ? '#10b981' : critical ? '#ef4444' : '#f59e0b';
-  const size = isSelected ? 34 : 28;
+  const size = isSelected ? 38 : 32;
   const half = size / 2;
 
   const html = `
     <div style="width:${size}px;height:${size}px;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-      ${!rescued ? `<div style="position:absolute;inset:0;border-radius:50%;background:${color};opacity:0.4;animation:ping 1.2s cubic-bezier(0,0,0.2,1) infinite;"></div>` : ''}
-      <div style="width:${size*0.65}px;height:${size*0.65}px;border-radius:50%;background:#0d1017;border:2px solid ${color};box-shadow:0 0 14px ${color};display:flex;align-items:center;justify-content:center;">
-        <span style="font-size:8px;font-weight:900;color:${color};">${rescued ? '✓' : '!'}</span>
+      <!-- Calm slow breathing sonar pulse -->
+      ${!rescued ? `
+        <div style="position:absolute;inset:-8px;border-radius:50%;border:1.5px solid ${color};opacity:0.5;animation:casualtyPulse 3.5s ease-in-out infinite;"></div>
+        <div style="position:absolute;inset:-4px;border-radius:50%;background:${color};opacity:0.2;animation:casualtyPulse 3.5s ease-in-out infinite;animation-delay:0.7s;"></div>
+      ` : ''}
+      <div style="width:${size*0.75}px;height:${size*0.75}px;border-radius:50%;background:#090d16;border:2px solid ${color};box-shadow:0 0 12px ${color};display:flex;align-items:center;justify-content:center;">
+        <span style="font-size:10px;font-weight:900;color:${color};font-family:monospace;">${rescued ? '✓' : '✚'}</span>
       </div>
+
+      <!-- On-Hover Casualty Tag -->
+      <div class="tactical-hover-tag" style="position:absolute;top:100%;margin-top:7px;left:50%;transform:translateX(-50%);background:rgba(4,8,18,0.96);border:1.5px solid ${color};border-radius:5px;padding:2px 7px;box-shadow:0 0 14px ${color}88, 0 3px 10px rgba(0,0,0,0.9);white-space:nowrap;pointer-events:none;z-index:9999;">
+        <span style="font-family:monospace;font-size:8.5px;font-weight:900;color:#ffffff;">${triage.victimCallsign || triage.id}</span>
+        <span style="font-family:monospace;font-size:7.5px;font-weight:800;color:${color};margin-left:4px;">${triage.severity}</span>
+      </div>
+
     </div>
   `;
   return L.divIcon({
@@ -178,11 +242,44 @@ function createTriageIcon(triage: TriageEvent, isSelected: boolean) {
 }
 
 // ---------------------------------------------------------------------------
+// 4. Drone FOV Fan Polygon Calculator
+// ---------------------------------------------------------------------------
+function calculateDroneFov(drone: DroneTelemetry): [number, number][] {
+  const lat = drone.position.lat;
+  const lng = drone.position.lng;
+  const headingRad = (drone.heading * Math.PI) / 180;
+  const fovSpread = (27 * Math.PI) / 180; // ±27° (54° wide camera FOV)
+  const range = 0.00038; // ~42 meters ground cone
+
+  const leftAngle = headingRad - fovSpread;
+  const rightAngle = headingRad + fovSpread;
+
+  const p0: [number, number] = [lat, lng];
+  const pLeft: [number, number] = [
+    lat + range * Math.cos(leftAngle),
+    lng + range * 1.15 * Math.sin(leftAngle)
+  ];
+  const pCenterArc: [number, number] = [
+    lat + range * 1.18 * Math.cos(headingRad),
+    lng + range * 1.35 * Math.sin(headingRad)
+  ];
+  const pRight: [number, number] = [
+    lat + range * Math.cos(rightAngle),
+    lng + range * 1.15 * Math.sin(rightAngle)
+  ];
+
+  return [p0, pLeft, pCenterArc, pRight, p0];
+}
+
+// ---------------------------------------------------------------------------
 // Map Click Handler — click outside markers to reset zoom
 // ---------------------------------------------------------------------------
 function MapClickHandler({ onMapClick }: { onMapClick?: () => void }) {
   useMapEvents({
     click: () => {
+      onMapClick?.();
+    },
+    popupclose: () => {
       onMapClick?.();
     }
   });
@@ -192,19 +289,33 @@ function MapClickHandler({ onMapClick }: { onMapClick?: () => void }) {
 // ---------------------------------------------------------------------------
 // Map View Controller — smooth flyTo on select, flyBack on deselect
 // ---------------------------------------------------------------------------
-function MapViewController({ focusCoords }: { focusCoords: [number, number] | null }) {
+function MapViewController({ 
+  focusCoords, 
+  centerCoords 
+}: { 
+  focusCoords: [number, number] | null; 
+  centerCoords: [number, number]; 
+}) {
   const map = useMap();
-  const prevRef = useRef<[number, number] | null>(null);
+  const prevFocusRef = useRef<[number, number] | null>(null);
+  const prevCenterRef = useRef<[number, number]>(centerCoords);
+
+  useEffect(() => {
+    if (centerCoords[0] !== prevCenterRef.current[0] || centerCoords[1] !== prevCenterRef.current[1]) {
+      map.flyTo(centerCoords, 18, { animate: true, duration: 1.2 });
+      prevCenterRef.current = centerCoords;
+    }
+  }, [centerCoords, map]);
 
   useEffect(() => {
     if (focusCoords) {
-      map.flyTo(focusCoords, 20, { animate: true, duration: 1.0 });
-      prevRef.current = focusCoords;
-    } else if (prevRef.current !== null) {
-      map.flyTo([28.61390, 77.20900], 18, { animate: true, duration: 0.9 });
-      prevRef.current = null;
+      map.flyTo(focusCoords, 20.5, { animate: true, duration: 1.0 });
+      prevFocusRef.current = focusCoords;
+    } else if (prevFocusRef.current !== null) {
+      map.flyTo(centerCoords, 18, { animate: true, duration: 0.9 });
+      prevFocusRef.current = null;
     }
-  }, [focusCoords, map]);
+  }, [focusCoords, centerCoords, map]);
 
   return null;
 }
@@ -217,6 +328,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   hexapods = [],
   triageEvents,
   pheromoneGrid,
+  rescueRoutes = INITIAL_RESCUE_ROUTES,
+  currentLocation = MISSION_LOCATIONS[0],
+  onSelectLocation,
   selectedDroneId,
   onSelectDrone,
   selectedHexapodId,
@@ -228,9 +342,35 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   const [activeLayer, setActiveLayer] = useState<LayerKey>('GOOGLE_SATELLITE');
   const [showPheromones, setShowPheromones] = useState(true);
   const [showGeofence, setShowGeofence] = useState(true);
-  const [showHexapods, setShowHexapods] = useState(true);
+  const [showFov, setShowFov] = useState(true);
+  const [showTrails, setShowTrails] = useState(true);
+  const [showRescueRoutes, setShowRescueRoutes] = useState(true);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
 
+  // Drone historical flight trails
+  const [droneTrails, setDroneTrails] = useState<Record<string, [number, number][]>>({});
+
+  useEffect(() => {
+    setDroneTrails(prev => {
+      const next = { ...prev };
+      drones.forEach(d => {
+        const currentPos: [number, number] = [d.position.lat, d.position.lng];
+        const existing = next[d.id] || [];
+        const last = existing[existing.length - 1];
+        if (!last || Math.hypot(last[0] - currentPos[0], last[1] - currentPos[1]) > 0.000015) {
+          const updated = [...existing, currentPos];
+          if (updated.length > 22) {
+            updated.shift();
+          }
+          next[d.id] = updated;
+        }
+      });
+      return next;
+    });
+  }, [drones]);
+
+  const activeCenterCoords: [number, number] = [currentLocation.center.lat, currentLocation.center.lng];
   const layer = MAP_LAYERS[activeLayer];
 
   const focusedDrone = drones.find(d => d.id === selectedDroneId);
@@ -245,110 +385,223 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   const hexaCoords = hexapods.map(h => [h.position.lat, h.position.lng] as [number, number]);
   const hexaLoop = hexapods.length > 0 ? [...hexaCoords, hexaCoords[0]] : [];
 
-  const layerOptions: { key: LayerKey; label: string; icon: string }[] = [
-    { key: 'GOOGLE_SATELLITE', label: 'Google Satellite', icon: '🛰' },
-    { key: 'GOOGLE_HYBRID',    label: 'Google Hybrid',    icon: '🗺' },
-    { key: 'ESRI_SATELLITE',   label: 'ESRI Satellite',   icon: '📡' },
-    { key: 'CARTODB_DARK',     label: 'Tactical Dark',    icon: '🌑' },
+  const layerOptions: { key: LayerKey; label: string; icon: React.ReactNode }[] = [
+    { key: 'GOOGLE_SATELLITE', label: 'Google Satellite', icon: <Radio size={12} className="text-orange-400" /> },
+    { key: 'GOOGLE_HYBRID',    label: 'Google Hybrid',    icon: <Layers size={12} className="text-cyan-400" /> },
+    { key: 'ESRI_SATELLITE',   label: 'ESRI Satellite',   icon: <Globe size={12} className="text-emerald-400" /> },
+    { key: 'CARTODB_DARK',     label: 'Tactical Dark',    icon: <Moon size={12} className="text-purple-400" /> },
   ];
+
+  // Unit click handlers with toggle zoom-in / zoom-out behavior
+  const handleDroneClick = (droneId: string) => {
+    if (selectedDroneId === droneId) {
+      onResetFocus?.();
+    } else {
+      onSelectDrone(droneId);
+    }
+  };
+
+  const handleHexapodClick = (hexapodId: string) => {
+    if (selectedHexapodId === hexapodId) {
+      onResetFocus?.();
+    } else {
+      onSelectHexapod?.(hexapodId);
+    }
+  };
 
   return (
     <div
       className="relative w-full h-full flex flex-col rounded-xl overflow-hidden select-none"
-      style={{ border: '1px solid rgba(255,255,255,0.07)', background: '#06080f' }}
+      style={{ border: '1px solid rgba(255,255,255,0.08)', background: '#06080f' }}
     >
-
       {/* ── TOP HUD OVERLAY ── */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between pointer-events-none">
+      <div className="absolute top-3.5 left-3.5 right-3.5 z-[1000] flex items-center justify-between pointer-events-none">
 
-        {/* Left: Coordinates & Active Unit Indicator */}
-        <div
-          className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-lg shadow-2xl"
-          style={{ background: 'rgba(4,6,12,0.94)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.09)' }}
-        >
-          <Compass size={12} className="text-orange-400 animate-spin" style={{ animationDuration: '18s' }} />
-          <span className="font-mono text-[10px] font-bold text-white">28.6139°N 77.2090°E</span>
-          <span className="text-slate-700 text-xs">·</span>
-          <span className="font-mono text-[10px] font-semibold text-orange-400">SECTOR 7-G · 120M</span>
-          {isUnitFocused && (
-            <span
-              className="px-1.5 py-0.5 rounded font-mono text-[8.5px] font-bold animate-pulse ml-1"
-              style={{ background: 'rgba(255,107,44,0.2)', color: '#ff6b2c', border: '1px solid rgba(255,107,44,0.5)' }}
-            >
-              ⊕ FOCUSED: {selectedDroneId || selectedHexapodId}
-            </span>
-          )}
-        </div>
+        {/* ── LEFT: Unified Geodetic & Target Location Capsule ── */}
+        <div className="pointer-events-auto flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#04060e]/92 border border-white/10 backdrop-blur-xl shadow-2xl">
+          <Compass size={13} className="text-orange-400 animate-spin" style={{ animationDuration: '24s' }} />
+          <span className="font-mono text-[10.5px] font-bold text-slate-100">
+            {currentLocation.center.lat.toFixed(4)}°N {currentLocation.center.lng.toFixed(4)}°E
+          </span>
+          <span className="text-slate-600 text-xs">|</span>
 
-        {/* Right: Map Action Buttons */}
-        <div className="pointer-events-auto flex items-center gap-1.5">
-
-          {/* Explicit Overview / Reset Button */}
-          {isUnitFocused && onResetFocus && (
-            <button
-              onClick={onResetFocus}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all shadow-lg"
-              style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)', backdropFilter: 'blur(12px)' }}
-              title="Click or touch map outside to zoom out"
-            >
-              <ZoomOut size={11} />
-              <span>ZOOM OUT</span>
-            </button>
-          )}
-
-          {/* Layer Selector */}
+          {/* Target Location Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setLayerMenuOpen(o => !o)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all shadow-lg"
-              style={{ background: 'rgba(255,107,44,0.12)', color: '#ff6b2c', border: '1px solid rgba(255,107,44,0.35)', backdropFilter: 'blur(12px)' }}
+              onClick={() => { setLocationMenuOpen(o => !o); setLayerMenuOpen(false); }}
+              className="flex items-center gap-1.5 text-[10.5px] font-bold text-orange-400 hover:text-orange-300 font-mono transition-colors"
+              title="Click to switch Mission Target Building / AO"
             >
-              <Map size={11} />
-              <span>{layerOptions.find(l => l.key === activeLayer)?.icon} {layerOptions.find(l => l.key === activeLayer)?.label.split(' ')[1]}</span>
+              <Navigation size={11} className="text-orange-400" />
+              <span className="max-w-[140px] truncate">{currentLocation.shortName}</span>
+              <span className="text-[7.5px] text-slate-400">▼</span>
             </button>
-            {layerMenuOpen && (
+
+            {locationMenuOpen && (
               <div
-                className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden shadow-2xl min-w-[160px] z-[1200]"
-                style={{ background: 'rgba(8,10,18,0.98)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.09)' }}
+                className="absolute top-full left-0 mt-2 rounded-xl overflow-hidden shadow-2xl min-w-[270px] z-[1200] flex flex-col font-mono text-xs bg-[#070912]/98 border border-orange-500/35 backdrop-blur-2xl"
               >
-                {layerOptions.map(opt => (
+                <div className="px-3 py-1.5 text-[8.5px] font-bold text-slate-300 uppercase tracking-widest border-b border-white/10">
+                  Select Mission Target Building / AO
+                </div>
+                {MISSION_LOCATIONS.map(loc => (
                   <button
-                    key={opt.key}
-                    onClick={() => { setActiveLayer(opt.key); setLayerMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 font-mono text-[10px] text-left transition-all hover:bg-white/5"
-                    style={activeLayer === opt.key ? {
-                      background: 'rgba(255,107,44,0.15)',
+                    key={loc.id}
+                    onClick={() => {
+                      onSelectLocation?.(loc);
+                      setLocationMenuOpen(false);
+                    }}
+                    className="w-full flex flex-col items-start px-3 py-2 text-left transition-all hover:bg-white/10"
+                    style={currentLocation.id === loc.id ? {
+                      background: 'rgba(255,107,44,0.18)',
                       color: '#ff6b2c',
-                    } : { color: '#94a3b8' }}
+                    } : { color: '#cbd5e1' }}
                   >
-                    <span>{opt.icon}</span>
-                    <span>{opt.label}</span>
-                    {activeLayer === opt.key && <span className="ml-auto text-orange-400">✓</span>}
+                    <div className="flex items-center w-full justify-between">
+                      <span className="font-bold text-[11px] text-white">{loc.name}</span>
+                      {currentLocation.id === loc.id && <span className="text-orange-400 text-[9px] font-bold">✓ ACTIVE</span>}
+                    </div>
+                    <span className="text-[9.5px] text-slate-300 mt-0.5">{loc.subtitle}</span>
+                    <span className="text-[8.5px] text-slate-400 font-mono mt-0.5">
+                      {loc.center.lat.toFixed(5)}°N, {loc.center.lng.toFixed(5)}°E
+                    </span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Pheromone heatmap toggle */}
-          <button
-            onClick={() => setShowPheromones(s => !s)}
-            className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] font-semibold transition-all shadow-lg"
-            style={showPheromones
-              ? { background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.4)', backdropFilter: 'blur(12px)' }
-              : { background: 'rgba(4,6,12,0.8)',      color: '#475569', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)' }
-            }
-          >PHM</button>
+          {/* Focused Unit Chip */}
+          {isUnitFocused && (
+            <div className="flex items-center gap-1.5 ml-0.5 px-2 py-0.5 rounded-md bg-orange-500/20 border border-orange-500/50 font-mono text-[9px] font-extrabold text-orange-400 animate-pulse">
+              <span>⊕ {selectedDroneId || selectedHexapodId}</span>
+              <button onClick={onResetFocus} className="hover:text-white text-[10px] ml-0.5" title="Reset view">✕</button>
+            </div>
+          )}
+        </div>
 
-          {/* Laser Geofence toggle */}
-          <button
-            onClick={() => setShowGeofence(s => !s)}
-            className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] font-semibold transition-all shadow-lg"
-            style={showGeofence
-              ? { background: 'rgba(6,182,212,0.15)', color: '#67e8f9', border: '1px solid rgba(6,182,212,0.4)', backdropFilter: 'blur(12px)' }
-              : { background: 'rgba(4,6,12,0.8)',     color: '#475569', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)' }
-            }
-          >GEO</button>
+        {/* ── RIGHT: Proportional Consolidated Controls ── */}
+        <div className="pointer-events-auto flex items-center gap-2">
+
+          {/* Overview / Zoom Out Button (Visible when focused) */}
+          {isUnitFocused && onResetFocus && (
+            <button
+              onClick={onResetFocus}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold text-rose-300 bg-rose-500/20 border border-rose-500/50 backdrop-blur-xl hover:bg-rose-500/30 transition-all shadow-lg"
+              title="Reset focus and zoom out to mission overview"
+            >
+              <ZoomOut size={12} />
+              <span>OVERVIEW</span>
+            </button>
+          )}
+
+          {/* Basemap Selector Pill */}
+          <div className="relative">
+            <button
+              onClick={() => { setLayerMenuOpen(o => !o); setLocationMenuOpen(false); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-[10.5px] font-bold text-slate-100 bg-[#04060e]/92 border border-white/10 backdrop-blur-xl hover:border-white/25 transition-all shadow-xl"
+              title="Change satellite imagery layer"
+            >
+              {layerOptions.find(l => l.key === activeLayer)?.icon}
+              <span>{layerOptions.find(l => l.key === activeLayer)?.label.split(' ')[1]}</span>
+              <span className="text-[7.5px] text-slate-400">▼</span>
+            </button>
+
+            {layerMenuOpen && (
+              <div
+                className="absolute top-full right-0 mt-2 rounded-xl overflow-hidden shadow-2xl min-w-[170px] z-[1200] bg-[#070912]/98 border border-white/15 backdrop-blur-2xl"
+              >
+                {layerOptions.map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => { setActiveLayer(opt.key); setLayerMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 font-mono text-[10.5px] font-semibold text-left transition-all hover:bg-white/10"
+                    style={activeLayer === opt.key ? {
+                      background: 'rgba(255,107,44,0.18)',
+                      color: '#ff6b2c',
+                    } : { color: '#cbd5e1' }}
+                  >
+                    <span>{opt.icon}</span>
+                    <span>{opt.label}</span>
+                    {activeLayer === opt.key && <span className="ml-auto text-orange-400 font-bold">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Consolidated Segmented Overlays Control Bar */}
+          <div className="flex items-center p-0.5 rounded-xl bg-[#04060e]/92 border border-white/10 backdrop-blur-xl shadow-2xl font-mono text-[9.5px]">
+            {/* Routes */}
+            <button
+              onClick={() => setShowRescueRoutes(s => !s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                showRescueRoutes
+                  ? 'bg-emerald-600/25 text-emerald-400 shadow-sm border border-emerald-600/40'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Toggle Ground Rescue Routes"
+            >
+              <Route size={10} />
+              <span>Routes</span>
+            </button>
+
+            {/* Drone FOV */}
+            <button
+              onClick={() => setShowFov(s => !s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                showFov
+                  ? 'bg-orange-500/25 text-orange-300 shadow-sm border border-orange-500/40'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Toggle Drone Sensor FOV Beams"
+            >
+              <Eye size={10} />
+              <span>FOV</span>
+            </button>
+
+            {/* Flight Trails */}
+            <button
+              onClick={() => setShowTrails(s => !s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                showTrails
+                  ? 'bg-sky-500/25 text-sky-300 shadow-sm border border-sky-500/40'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Toggle Flight Path Trails"
+            >
+              <Activity size={10} />
+              <span>Trails</span>
+            </button>
+
+            {/* Pheromone Heatmap */}
+            <button
+              onClick={() => setShowPheromones(s => !s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                showPheromones
+                  ? 'bg-yellow-500/25 text-yellow-300 shadow-sm border border-yellow-500/40'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Toggle Pheromone Coverage Grid"
+            >
+              <Layers size={10} />
+              <span>Grid</span>
+            </button>
+
+            {/* Geofence */}
+            <button
+              onClick={() => setShowGeofence(s => !s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                showGeofence
+                  ? 'bg-fuchsia-500/25 text-fuchsia-300 shadow-sm border border-fuchsia-500/40'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Toggle 6-Node Laser Perimeter Geofence"
+            >
+              <Shield size={10} />
+              <span>Geofence</span>
+            </button>
+          </div>
 
         </div>
       </div>
@@ -356,8 +609,8 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       {/* ── LEAFLET INTERACTIVE MAP CANVAS ── */}
       <div className="flex-grow w-full h-full z-0">
         <MapContainer
-          center={[28.61390, 77.20900]}
-          zoom={18}
+          center={activeCenterCoords}
+          zoom={currentLocation.defaultZoom || 18}
           zoomControl={false}
           className="w-full h-full"
           style={{ background: '#06080f' }}
@@ -365,209 +618,415 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           <ZoomControl position="bottomright" />
           
           {/* Map View Controller for smooth flyTo zoom-in / fly-back zoom-out */}
-          <MapViewController focusCoords={focusCoords} />
+          <MapViewController focusCoords={focusCoords} centerCoords={activeCenterCoords} />
 
           {/* Map Click Handler — clicking outside any marker automatically zooms out */}
           <MapClickHandler onMapClick={onResetFocus} />
 
+          {/* Active Map Tile Layer */}
           <TileLayer
             key={activeLayer}
             url={layer.url}
-            subdomains={layer.subdomains as any}
             maxZoom={layer.maxZoom}
             attribution={layer.attribution}
           />
 
-          {/* Building footprint outline (120m x 120m structure) */}
-          <Polygon
-            positions={[
-              [28.61450, 77.20840],
-              [28.61450, 77.20960],
-              [28.61330, 77.20960],
-              [28.61330, 77.20840]
-            ]}
-            pathOptions={{ color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.05, weight: 1.5, dashArray: '5 5' }}
-          />
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* A. 6-NODE IRREGULAR OPTICAL LASER GEOFENCE PERIMETER  */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {showGeofence && hexapods.length >= 6 && (
+            <>
+              {/* Semi-transparent Irregular Polygon Zone Fill */}
+              <Polygon
+                positions={hexaCoords}
+                pathOptions={{
+                  color: '#a855f7',
+                  fillColor: '#8b5cf6',
+                  fillOpacity: 0.16,
+                  weight: 2.0,
+                  dashArray: '5, 5',
+                }}
+              />
 
-          {/* Critical collapse zone */}
-          <Polygon
-            positions={[
-              [28.61440, 77.20860],
-              [28.61440, 77.20940],
-              [28.61390, 77.20940],
-              [28.61390, 77.20860]
-            ]}
-            pathOptions={{ color: '#ef4444', fillColor: '#991b1b', fillOpacity: 0.18, weight: 1.5 }}
-          />
+              {/* Optical Laser Boundary Beam connecting the 6 nodes */}
+              <Polyline
+                positions={hexaLoop}
+                pathOptions={{
+                  color: '#c084fc',
+                  weight: 2.8,
+                  opacity: 0.95,
+                  dashArray: '8, 6',
+                }}
+              />
+            </>
+          )}
 
-          {/* Pheromone heatmap */}
-          {showPheromones && pheromoneGrid.map((cell) => {
-            const isHazard    = cell.slopeRiskLevel > 0.6;
-            const isRecruit   = cell.recruitmentLevel > 0.4;
-            const isSearched  = cell.coverageScore > 0.3;
-            const fillColor   = isHazard ? '#dc2626' : isRecruit ? '#ff6b2c' : isSearched ? '#10b981' : 'transparent';
-            const fillOpacity = isHazard ? 0.28 : isRecruit ? 0.32 : isSearched ? 0.1 : 0;
-            if (fillOpacity === 0) return null;
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* B. OPTIMAL RESCUE INGRESS EXTRACTION CORRIDORS        */}
+          {/* High-visibility multi-layer tactical glow vector     */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {showRescueRoutes && rescueRoutes.map(route => {
+            const isSelected = selectedTriageId === route.triageId;
+            const isHazardous = route.status === 'HAZARDOUS';
+            const glowColor = isHazardous ? '#d97706' : '#059669';
+            const coreColor = isHazardous ? '#f59e0b' : '#10b981';
+
+
+
+            return (
+              <React.Fragment key={`rescue-route-${route.triageId}`}>
+                {/* 1. Black High-Contrast Backdrop Line (Prevents washing out against roofs/roads) */}
+                <Polyline
+                  positions={route.waypoints}
+                  pathOptions={{
+                    color: '#000000',
+                    weight: isSelected ? 10 : 8,
+                    opacity: 0.95,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                  }}
+                />
+
+                {/* 2. Fluorescent Neon Outer Glow Ribbon */}
+                <Polyline
+                  positions={route.waypoints}
+                  pathOptions={{
+                    color: glowColor,
+                    weight: isSelected ? 7 : 5.5,
+                    opacity: isSelected ? 0.95 : 0.8,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                  }}
+                />
+
+                {/* 3. Luminous High-Intensity Core Dashed Line */}
+                <Polyline
+                  positions={route.waypoints}
+                  pathOptions={{
+                    color: '#ffffff',
+                    weight: isSelected ? 3.2 : 2.5,
+                    opacity: 1.0,
+                    dashArray: '7, 9',
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                  }}
+                >
+                  <Popup>
+                    <div className="p-2.5 font-mono text-xs bg-[#070b14] text-white rounded-lg border border-emerald-400/50 shadow-2xl min-w-[220px]">
+                      <div className="font-extrabold text-emerald-400 flex items-center gap-1.5 pb-1 border-b border-white/10">
+                        <span className="text-sm">➔</span>
+                        <span>OPTIMAL EXTRACTION ROUTE</span>
+                      </div>
+                      <div className="text-[11px] font-bold text-white mt-1.5">{route.victimCallsign} ({route.triageId})</div>
+                      <div className="text-[10px] text-slate-300 mt-0.5">Ingress: {route.ingressPointName}</div>
+                      <div className="text-[10px] text-slate-300">Total Distance: <span className="font-bold text-emerald-300">{route.totalDistanceM}m</span></div>
+                      <div className="text-[10px] text-slate-300">Est. Transit: <span className="font-bold text-white">{route.estimatedTransitTimeMin} min</span></div>
+                      <div className="text-[10px] text-emerald-400 font-extrabold mt-0.5">Passage Clearance: {route.clearancePct}%</div>
+                      <div className="text-[9.5px] text-slate-400 mt-1 border-t border-white/5 pt-1">Assigned: {route.recommendedTeam}</div>
+                    </div>
+                  </Popup>
+                </Polyline>
+
+                {/* 4. Waypoint Turn Junction Rings along the corridor */}
+                {route.waypoints.slice(1, -1).map((pt, wpIdx) => (
+                  <CircleMarker
+                    key={`wp-turn-${route.triageId}-${wpIdx}`}
+                    center={pt}
+                    radius={isSelected ? 4 : 3}
+                    pathOptions={{
+                      color: '#ffffff',
+                      fillColor: coreColor,
+                      fillOpacity: 1,
+                      weight: 1.5
+                    }}
+                  />
+                ))}
+
+                {/* 5. Ingress Staging & Route Clearance Pill (Positioned OUTSIDE the geofence perimeter) */}
+                <Marker
+                  position={route.ingressCoords}
+                  icon={L.divIcon({
+                    html: `
+                      <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(4,8,18,0.96);border:1.5px solid ${glowColor};border-radius:20px;padding:3px 10px;box-shadow:0 0 16px ${glowColor}77, 0 4px 12px rgba(0,0,0,0.9);white-space:nowrap;width:max-content;cursor:pointer;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${glowColor}25;color:${glowColor};font-size:9px;font-weight:900;">➔</span>
+                        <span style="font-family:monospace;font-size:8.5px;font-weight:900;color:#ffffff;letter-spacing:0.04em;">ROUTE ${route.triageId.replace('TRI-', '')}</span>
+                        <span style="font-family:monospace;font-size:8px;font-weight:800;color:${coreColor};background:${coreColor}22;border:1px solid ${coreColor}55;padding:1px 5px;border-radius:10px;">${route.clearancePct}% CLEAR</span>
+                        <span style="font-family:monospace;font-size:7.5px;font-weight:700;color:#94a3b8;">${route.totalDistanceM}M</span>
+                      </div>
+                    `,
+                    className: 'tactical-ingress-pill',
+                    iconSize: [210, 24],
+                    iconAnchor: [105, 12]
+                  })}
+                  eventHandlers={{
+                    click: () => {
+                      const casualty = triageEvents.find(t => t.id === route.triageId);
+                      if (casualty) onSelectTriage(casualty);
+                    }
+                  }}
+                />
+              </React.Fragment>
+            );
+          })}
+
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* C. 8x8 STIGMERGIC PHEROMONE HEATMAP CELLS             */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {showPheromones && pheromoneGrid.map(cell => {
+            const { bounds, coverageScore } = cell;
+            // Entire grid uniformly styled in sleek tactical cyber yellow with lowered translucent opacity
+            const fillColor = '#eab308';
+            const fillOpacity = Math.min(0.16, Math.max(0.04, coverageScore * 0.14));
+
             return (
               <Rectangle
                 key={cell.cellId}
-                bounds={[[cell.bounds.south, cell.bounds.west], [cell.bounds.north, cell.bounds.east]]}
-                pathOptions={{ fillColor, fillOpacity, weight: 0.4, color: isHazard ? '#ef4444' : isRecruit ? '#ff6b2c' : '#334155', dashArray: isHazard ? '3 3' : undefined }}
+                bounds={[
+                  [bounds.south, bounds.west],
+                  [bounds.north, bounds.east]
+                ]}
+                pathOptions={{
+                  fillColor,
+                  fillOpacity,
+                  weight: 0.75,
+                  color: '#eab308',
+                  opacity: 0.22
+                }}
               />
             );
           })}
 
-          {/* Hexapod geofence laser polygon */}
-          {showGeofence && hexaCoords.length > 2 && (
-            <>
-              <Polygon
-                positions={hexaCoords}
-                pathOptions={{ fillColor: '#06b6d4', fillOpacity: 0.06, color: '#06b6d4', weight: 1.2, dashArray: '6 5' }}
-              />
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* D. DRONE FLIGHT TRAILS & FOV CONES                    */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {showTrails && drones.map(d => {
+            const trail = droneTrails[d.id];
+            if (!trail || trail.length < 2) return null;
+            const isSelected = selectedDroneId === d.id;
+            const color = d.status === 'ENGAGED' ? '#ef4444' : d.zoneAssignment === 'PERIMETER_RING' ? '#0284c7' : '#ff6b2c';
+            return (
               <Polyline
-                positions={hexaLoop}
-                pathOptions={{ color: '#22d3ee', weight: 2.0, opacity: 0.8 }}
+                key={`trail-${d.id}`}
+                positions={trail}
+                pathOptions={{
+                  color,
+                  weight: isSelected ? 2.8 : 1.6,
+                  opacity: isSelected ? 0.85 : 0.45,
+                  dashArray: isSelected ? '4, 4' : '2, 5',
+                }}
               />
-            </>
-          )}
+            );
+          })}
 
-          {/* Ground Hexapods */}
-          {showHexapods && hexapods.map((hexa) => (
-            <Marker
-              key={hexa.id}
-              position={[hexa.position.lat, hexa.position.lng]}
-              icon={createHexapodIcon(hexa, selectedHexapodId === hexa.id)}
-              eventHandlers={{ 
-                click: (e: any) => {
-                  if (e?.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
-                  if (selectedHexapodId === hexa.id) { 
-                    onResetFocus?.(); 
-                  } else { 
-                    onSelectHexapod?.(hexa.id); 
-                  }
-                }
-              }}
-            >
-              <Popup className="custom-leaflet-popup" closeButton={false}>
-                <div className="p-3 font-mono text-xs min-w-[210px] rounded-xl"
-                  style={{ background: '#0a0d14', border: '1px solid rgba(6,182,212,0.4)', color: '#e2e8f0' }}
-                >
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-                    <span className="font-extrabold text-cyan-400">{hexa.id}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                      style={{ background: 'rgba(6,182,212,0.15)', color: '#67e8f9' }}
-                    >{hexa.status}</span>
-                  </div>
-                  <div className="space-y-1 text-[11px] text-slate-300">
-                    <div>PWR: <strong className="text-emerald-400">{hexa.battery.level}%</strong> · STAB: <strong>{hexa.groundStabilityIndex}%</strong></div>
-                    <div>VERTEX: <span className="text-slate-400">{hexa.perimeterVertexName}</span></div>
-                    <div>SEISMIC: <span className="text-amber-400">{hexa.seismicAcoustic.vibrationMmS} mm/s</span></div>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+          {showFov && drones.map(d => {
+            const fovCoords = calculateDroneFov(d);
+            const isSelected = selectedDroneId === d.id;
+            const color = d.status === 'ENGAGED' ? '#ef4444' : d.zoneAssignment === 'PERIMETER_RING' ? '#0284c7' : '#ff6b2c';
 
-          {/* Aerial Drones */}
-          {drones.map((drone) => (
-            <Marker
-              key={drone.id}
-              position={[drone.position.lat, drone.position.lng]}
-              icon={createDroneIcon(drone, selectedDroneId === drone.id)}
-              eventHandlers={{ 
-                click: (e: any) => {
-                  if (e?.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
-                  if (selectedDroneId === drone.id) { 
-                    onResetFocus?.(); 
-                  } else { 
-                    onSelectDrone(drone.id); 
-                  }
-                }
-              }}
-            >
-              <Popup className="custom-leaflet-popup" closeButton={false}>
-                <div className="p-3 font-mono text-xs min-w-[230px] rounded-xl"
-                  style={{ background: '#0a0d14', border: '1px solid rgba(255,107,44,0.4)', color: '#e2e8f0' }}
-                >
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-extrabold text-orange-400">{drone.id}</span>
-                      <span className="text-[9px] text-slate-500">({drone.callsign})</span>
-                    </div>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                      style={{ background: 'rgba(255,107,44,0.15)', color: '#fb923c' }}
-                    >{drone.status}</span>
-                  </div>
-                  <div className="space-y-1 text-[11px] text-slate-300">
-                    <div>ALT: <strong className="text-white">{drone.position.altitude}m</strong> · SPD: <strong>{drone.groundSpeed} m/s</strong></div>
-                    <div>BATT: <strong className={drone.battery.level < 30 ? 'text-red-400' : 'text-emerald-400'}>{drone.battery.level}%</strong></div>
-                    <div>ZONE: <span className="text-purple-300">{drone.zoneAssignment}</span></div>
-                    <div className="text-[9.5px] text-slate-500 italic pt-0.5 truncate">{drone.perception.autonomousGoal}</div>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+            return (
+              <Polygon
+                key={`fov-${d.id}`}
+                positions={fovCoords}
+                pathOptions={{
+                  color,
+                  fillColor: color,
+                  fillOpacity: isSelected ? 0.22 : 0.10,
+                  weight: 1,
+                  dashArray: '2, 3'
+                }}
+              />
+            );
+          })}
 
-          {/* Triage casualty markers */}
-          {triageEvents.map((triage) => (
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* E. CASUALTY TRIAGE MARKERS                            */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {triageEvents.map(triage => (
             <Marker
               key={triage.id}
               position={[triage.location.lat, triage.location.lng]}
               icon={createTriageIcon(triage, selectedTriageId === triage.id)}
-              eventHandlers={{ 
-                click: (e: any) => {
-                  if (e?.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
-                  onSelectTriage(triage);
-                }
+              eventHandlers={{
+                click: () => onSelectTriage(triage)
               }}
             >
-              <Popup className="custom-leaflet-popup" closeButton={false}>
-                <div className="p-3 font-mono text-xs min-w-[220px] rounded-xl"
-                  style={{ background: '#0a0d14', border: '1px solid rgba(239,68,68,0.4)', color: '#e2e8f0' }}
-                >
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-                    <span className="font-extrabold text-red-400">{triage.id}</span>
-                    <span className="font-bold text-[10px]" style={{ color: triage.rescueStatus === 'RESCUED' ? '#6ee7b7' : '#fbbf24' }}>{triage.rescueStatus}</span>
+              <Popup>
+                <div className="p-2.5 font-mono text-xs bg-[#090c15] text-white rounded border border-orange-500/40 min-w-[200px]">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-1 mb-1.5">
+                    <span className="font-extrabold text-orange-400">{triage.victimCallsign || triage.id}</span>
+                    <span className={`font-bold text-[9px] px-1.5 py-0.5 rounded ${triage.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                      {triage.severity}
+                    </span>
                   </div>
-                  <div className="space-y-1 text-[11px] text-slate-300">
-                    <div>SEVERITY: <strong style={{ color: triage.severity === 'CRITICAL' ? '#f87171' : '#fbbf24' }}>{triage.severity}</strong></div>
-                    <div>ZONE: <span className="text-amber-300">{triage.location.zone || triage.sector || 'Central Atrium'}</span></div>
-                    <div>HR: <strong className="text-white">{triage.heartRateBpm || 112} BPM</strong> · TEMP: {triage.thermal?.bodyTemp ?? triage.thermalSignatureC ?? 37.1}°C</div>
-                    <div>TRAPPED: <strong className="text-white">{triage.trappedPersonsCount || 1}</strong></div>
-                  </div>
+                  <div className="text-slate-200 text-[10px] font-semibold">{triage.location.zone}</div>
+                  <div className="text-slate-300 text-[9.5px] mt-1">Status: <span className="text-emerald-400 font-bold">{triage.rescueStatus}</span></div>
+                  <div className="text-slate-300 text-[9.5px]">Thermal Diff: +{triage.thermal?.differential || 21.5}°C</div>
+                  <div className="text-slate-300 text-[9.5px]">Heart Rate: {triage.heartRateBpm || 104} BPM</div>
+                  <div className="text-slate-300 text-[9.5px] mt-1">{triage.recommendedAction}</div>
                 </div>
               </Popup>
             </Marker>
           ))}
+
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* F. GROUND HEXAPOD ROBOT ANCHORS                       */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {hexapods.map(hexa => (
+            <Marker
+              key={hexa.id}
+              position={[hexa.position.lat, hexa.position.lng]}
+              icon={createHexapodIcon(hexa, selectedHexapodId === hexa.id)}
+              eventHandlers={{
+                click: () => handleHexapodClick(hexa.id)
+              }}
+            >
+              <Popup>
+                <div className="p-2 font-mono text-xs bg-[#080b14] text-white rounded border border-cyan-500/40">
+                  <div className="font-bold text-cyan-400">{hexa.callsign} ({hexa.id})</div>
+                  <div className="text-[10px] text-slate-200 font-medium">{hexa.perimeterVertexName}</div>
+                  <div className="text-[10px] text-slate-300 mt-1">Status: {hexa.status} · Battery: {Math.round(hexa.battery.level)}%</div>
+                  <div className="text-[10px] text-slate-300">Soil Stability: {hexa.groundStabilityIndex}% · Slope: {hexa.position.terrainSlopeDeg}°</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* ══════════════════════════════════════════════════════ */}
+          {/* G. 10 AUTONOMOUS AERIAL SWARM UAVs                    */}
+          {/* ══════════════════════════════════════════════════════ */}
+          {drones.map(drone => (
+            <Marker
+              key={drone.id}
+              position={[drone.position.lat, drone.position.lng]}
+              icon={createDroneIcon(drone, selectedDroneId === drone.id)}
+              eventHandlers={{
+                click: () => handleDroneClick(drone.id)
+              }}
+            >
+              <Popup>
+                <div className="p-2 font-mono text-xs bg-[#080b14] text-white rounded border border-orange-500/40">
+                  <div className="font-bold text-orange-400">{drone.callsign} ({drone.id})</div>
+                  <div className="text-[10px] text-slate-200 font-semibold">{drone.perception.autonomousGoal}</div>
+                  <div className="text-[10px] text-slate-300 mt-1">Altitude: {Math.round(drone.position.altitude)}m AGL · Speed: {drone.groundSpeed.toFixed(1)} m/s</div>
+                  <div className="text-[10px] text-slate-300">Battery: {Math.round(drone.battery.level)}% · Link RSSI: {drone.link.rssi} dBm</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
         </MapContainer>
       </div>
 
-      {/* ── BOTTOM STATUS RIBBON ── */}
-      <div
-        className="h-[26px] flex items-center justify-between px-4 font-mono text-[9px] select-none z-10 shrink-0"
-        style={{ background: 'rgba(4,6,12,0.97)', borderTop: '1px solid rgba(255,255,255,0.05)' }}
-      >
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 font-semibold text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            GEOFENCE ACTIVE · 120M
-          </span>
-          <span className="text-slate-700">·</span>
-          <span className="text-slate-500">{drones.length} UAV · {hexapods.length} HEXA</span>
-          {isUnitFocused && (
-            <>
-              <span className="text-slate-700">·</span>
-              <span className="text-orange-400 font-bold">TOUCH MAP OUTSIDE TO ZOOM OUT</span>
-            </>
+      {/* ── DOCKED LIVE UNIT TELEMETRY DOSSIER (Shows when unit is clicked) ── */}
+      {isUnitFocused && (focusedDrone || focusedHexapod) && (
+        <div
+          className="absolute bottom-4 left-4 z-[1000] p-3 rounded-2xl bg-[#04060f]/95 border border-orange-500/40 backdrop-blur-2xl shadow-2xl min-w-[280px] max-w-[340px] font-mono select-text pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200"
+          style={{ boxShadow: '0 0 30px rgba(0,0,0,0.85), 0 0 15px rgba(255,107,44,0.2)' }}
+        >
+          {focusedDrone && (
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                  <span className="font-extrabold text-sm text-white">{focusedDrone.id}</span>
+                  <span className="text-[10px] text-orange-400 font-bold px-1.5 py-0.5 rounded bg-orange-500/20 border border-orange-500/40">
+                    {focusedDrone.callsign}
+                  </span>
+                </div>
+                <button
+                  onClick={onResetFocus}
+                  className="w-5 h-5 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 text-xs"
+                  title="Close & Zoom Out"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Grid Metrics */}
+              <div className="grid grid-cols-3 gap-1.5 text-center mb-2">
+                <div className="p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[7.5px] text-slate-400 font-bold uppercase">Altitude</div>
+                  <div className="text-[11px] font-extrabold text-slate-100">{Math.round(focusedDrone.position.altitude)}m AGL</div>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[7.5px] text-slate-400 font-bold uppercase">Speed</div>
+                  <div className="text-[11px] font-extrabold text-cyan-400">{focusedDrone.groundSpeed.toFixed(1)} m/s</div>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[7.5px] text-slate-400 font-bold uppercase">Battery</div>
+                  <div className={`text-[11px] font-extrabold ${focusedDrone.battery.level < 25 ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {Math.round(focusedDrone.battery.level)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Mission Goal */}
+              <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/25 mb-2">
+                <div className="text-[7.5px] text-orange-400 font-extrabold uppercase tracking-wider mb-0.5">Autonomous Mission Goal</div>
+                <div className="text-[9.5px] text-slate-200 leading-snug font-medium">
+                  {focusedDrone.perception.autonomousGoal}
+                </div>
+              </div>
+
+              {/* Footer details */}
+              <div className="flex items-center justify-between text-[8px] text-slate-400 pt-1 border-t border-white/5">
+                <span>RSSI: {focusedDrone.link.rssi} dBm</span>
+                <span>ZONE: {focusedDrone.zoneAssignment}</span>
+                <span className="text-emerald-400 font-bold">STATUS: {focusedDrone.status}</span>
+              </div>
+            </div>
+          )}
+
+          {focusedHexapod && (
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                  <span className="font-extrabold text-sm text-white">{focusedHexapod.id}</span>
+                  <span className="text-[10px] text-purple-300 font-bold px-1.5 py-0.5 rounded bg-purple-500/20 border border-purple-500/40">
+                    {focusedHexapod.callsign}
+                  </span>
+                </div>
+                <button
+                  onClick={onResetFocus}
+                  className="w-5 h-5 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 text-xs"
+                  title="Close & Zoom Out"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Vertex & Anchor */}
+              <div className="text-[10px] text-slate-200 font-semibold mb-2">
+                {focusedHexapod.perimeterVertexName}
+              </div>
+
+              {/* Grid Metrics */}
+              <div className="grid grid-cols-3 gap-1.5 text-center mb-2">
+                <div className="p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[7.5px] text-slate-400 font-bold uppercase">Stability</div>
+                  <div className="text-[11px] font-extrabold text-emerald-400">{focusedHexapod.groundStabilityIndex}%</div>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[7.5px] text-slate-400 font-bold uppercase">Slope</div>
+                  <div className="text-[11px] font-extrabold text-slate-100">{focusedHexapod.position.terrainSlopeDeg}°</div>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[7.5px] text-slate-400 font-bold uppercase">Battery</div>
+                  <div className="text-[11px] font-extrabold text-cyan-400">{Math.round(focusedHexapod.battery.level)}%</div>
+                </div>
+              </div>
+
+              {/* Laser Status */}
+              <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/25 text-[8.5px] text-slate-200">
+                Laser Range: {focusedHexapod.geofenceLaser.laserRangeM}m · Gait: {focusedHexapod.gaitMode}
+              </div>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-slate-700">28.6139°N 77.2090°E</span>
-          <span className="text-orange-400 font-semibold">● {layerOptions.find(l => l.key === activeLayer)?.label}</span>
-        </div>
-      </div>
-
+      )}
     </div>
   );
 };

@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     id: NavTab;
     label: string;
     sublabel: string;
-    icon: React.FC<{ className?: string; size?: number }>;
+    icon: React.ComponentType<{ className?: string; size?: number | string }>;
     badge?: string;
     variant?: BadgeVariant;
   }[] = [
@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Section label */}
       <div className="px-4 pt-4 pb-2 shrink-0">
-        <span className="font-mono text-[9px] text-slate-600 uppercase tracking-[0.2em] font-bold">
+        <span className="font-mono text-[9.5px] text-slate-300 uppercase tracking-[0.2em] font-bold">
           Command Views
         </span>
       </div>
@@ -114,10 +114,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {/* Labels */}
               <div className="flex-1 min-w-0 text-left">
-                <div className={`text-[11.5px] font-semibold leading-tight truncate transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                <div className={`text-[11.5px] font-semibold leading-tight truncate transition-colors ${isActive ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
                   {item.label}
                 </div>
-                <div className={`text-[9px] font-mono leading-tight mt-0.5 truncate transition-colors ${isActive ? 'text-orange-300/65' : 'text-slate-600 group-hover:text-slate-500'}`}>
+                <div className={`text-[9px] font-mono leading-tight mt-0.5 truncate transition-colors ${isActive ? 'text-orange-300/85' : 'text-slate-300 group-hover:text-slate-200 font-medium'}`}>
                   {item.sublabel}
                 </div>
               </div>
@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.25)' }}
       >
         <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5 font-mono text-[9px] text-slate-500">
+          <div className="flex items-center gap-1.5 font-mono text-[9.5px] text-slate-300 font-semibold">
             <Wifi size={10} className="text-emerald-400 animate-pulse" />
             <span>MESH LINK</span>
           </div>
@@ -158,13 +158,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }} />
         </div>
 
-        <div className="flex justify-between font-mono text-[8px] text-slate-700">
+        <div className="flex justify-between font-mono text-[8.5px] text-slate-300 font-semibold">
           <span>LAT 12ms</span>
           <span>16 NODES</span>
         </div>
 
-        <div className="mt-2 px-2 py-1 rounded-lg text-center font-mono text-[8px] text-slate-700 border"
-          style={{ borderColor: 'rgba(255,255,255,0.04)', background: 'rgba(255,255,255,0.02)' }}
+        <div className="mt-2 px-2 py-1 rounded-lg text-center font-mono text-[8.5px] text-slate-300 font-medium border"
+          style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
         >
           OP-SEISMIC-RECON-7 · ACS v5.0
         </div>

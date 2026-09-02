@@ -39,7 +39,7 @@ export const MissionPlaybackView: React.FC<MissionPlaybackViewProps> = ({
               NNP Air-Ground Blackbox Telemetry & Geofence Replay
             </h2>
             <p className="text-xs font-mono text-slate-400">
-              150-second continuous circular telemetry flight buffer across 10 Ant UAVs & 6 Hexapod Ground Units
+              150-second continuous circular telemetry flight buffer across 10 Autonomous Aerial UAVs & 6 Hexapod Ground Units
             </p>
           </div>
         </div>
@@ -78,12 +78,12 @@ export const MissionPlaybackView: React.FC<MissionPlaybackViewProps> = ({
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {Array.from({ length: 10 }).map((_, idx) => {
-                  const antId = `ANT-${idx < 9 ? '0' : ''}${idx + 1}`;
+                  const uavId = `UAV-${idx < 9 ? '0' : ''}${idx + 1}`;
                   const batt = Math.max(15, Math.round(92 - (idx * 6) - (150 - currentTimeSec) * 0.05));
                   return (
                     <div key={idx} className="p-2 bg-[#12151e] rounded-xl border border-white/5 text-xs font-mono">
                       <div className="flex items-center justify-between text-[11px] font-bold text-white">
-                        <span className="text-[#ff6b2c]">🐜 {antId}</span>
+                        <span className="text-[#ff6b2c]">◆ {uavId}</span>
                         <span className={batt < 25 ? 'text-red-400' : 'text-emerald-400'}>{batt}%</span>
                       </div>
                       <div className="text-[9.5px] text-slate-400 mt-0.5">ALT: {45 + idx * 6}m</div>
@@ -105,7 +105,7 @@ export const MissionPlaybackView: React.FC<MissionPlaybackViewProps> = ({
                   return (
                     <div key={idx} className="p-2 bg-[#041d24] rounded-xl border border-cyan-500/30 text-xs font-mono">
                       <div className="flex items-center justify-between text-[11px] font-bold text-white">
-                        <span className="text-cyan-300">🕷️ {hexId}</span>
+                        <span className="text-cyan-300">⬡ {hexId}</span>
                         <span className="text-emerald-400">{stab}%</span>
                       </div>
                       <div className="text-[9.5px] text-slate-400 mt-0.5">LOCKED</div>

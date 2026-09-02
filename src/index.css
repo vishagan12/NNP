@@ -18,6 +18,38 @@
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+@keyframes casualtyPulse {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.45); opacity: 0.85; }
+}
+@keyframes rotorSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.tactical-ingress-pill {
+  width: auto !important;
+  height: auto !important;
+  white-space: nowrap !important;
+}
+
+/* Tactical Hover Tag (Hidden by default, smoothly shows on hover below unit) */
+.tactical-hover-tag {
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 6px) !important;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+  pointer-events: none;
+}
+
+.tactical-drone-marker:hover .tactical-hover-tag,
+.tactical-hexapod-marker:hover .tactical-hover-tag,
+.tactical-triage-marker:hover .tactical-hover-tag {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translate(-50%, 0) !important;
+}
+
 
 
 /* ============================================================ */

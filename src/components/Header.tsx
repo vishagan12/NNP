@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, Cpu, Wifi, Shield, AlertTriangle, Layers } from 'lucide-react';
+import { Radio, Cpu, Wifi, Shield, AlertTriangle, Layers, Zap } from 'lucide-react';
 
 interface HeaderProps {
   missionId: string;
@@ -31,7 +31,7 @@ const MetricPill: React.FC<MetricPillProps> = ({ icon, label, value, color, bord
   >
     <div style={{ color }}>{icon}</div>
     <div className="font-mono leading-none">
-      <div className="text-[7.5px] text-slate-600 uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-[8px] text-slate-300 font-semibold uppercase tracking-wider mb-0.5">{label}</div>
       <div className="text-[10.5px] font-bold whitespace-nowrap" style={{ color }}>{value}</div>
     </div>
   </div>
@@ -67,7 +67,9 @@ export const Header: React.FC<HeaderProps> = ({
               background: 'linear-gradient(135deg, #ff4b1f 0%, #ff6b2c 100%)',
               boxShadow: '0 0 20px rgba(255,107,44,0.55), inset 0 1px 0 rgba(255,255,255,0.2)',
             }}
-          >⚡</div>
+          >
+            <Zap size={15} className="text-white fill-white" />
+          </div>
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px] font-extrabold tracking-[0.14em] uppercase leading-none text-white">
@@ -81,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                 USAR
               </span>
             </div>
-            <span className="text-[8px] font-mono text-slate-600 tracking-widest uppercase leading-none">
+            <span className="text-[8.5px] font-mono text-slate-300 font-medium tracking-widest uppercase leading-none">
               Air-Ground GCS · EQ M7.2
             </span>
           </div>
@@ -137,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* ── LIVE INDICATOR ── */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-mono text-[9px] text-slate-500 hidden md:block">LIVE</span>
+          <span className="font-mono text-[9px] text-slate-300 font-bold hidden md:block">LIVE</span>
         </div>
 
         {/* ── Divider ── */}

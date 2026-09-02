@@ -123,7 +123,7 @@ export interface HexapodTelemetry {
   link: RadioLink;
   payload: {
     type: string;
-    status: 'ARMED' | 'ANCHOR_DEPLOYED' | 'STANDBY';
+    status: 'ARMED' | 'ANCHOR_DEPLOYED' | 'STANDBY' | 'MONITORING_TAP_CODES';
     weightKg: number;
   };
   sensors: {
@@ -192,7 +192,9 @@ export interface PheromoneCell {
   recruitmentLevel: number;
   repulsionLevel: number;
   slopeRiskLevel: number; // Landslide slope failure risk (0.0 to 1.0)
-  lastUpdated: number;
+  lastVisitedTimestamp?: number;
+  evaporationHalfLifeSec?: number;
+  lastUpdated?: number;
 }
 
 export interface AlertEntry {
@@ -208,10 +210,12 @@ export interface AlertEntry {
   | 'GEOFENCE_BREACH'
   | 'LOW_BATTERY'
   | 'COMM_JAM'
+  | 'GAS_LEAK'
   | 'SURVIVOR_FOUND';
   sourceDroneId: string;
   message: string;
-  acknowledged: boolean;
+  acknowledged?: boolean;
+  location?: { lat: number; lng: number };
 }
 
 export interface ReasoningTraceLog {
@@ -235,6 +239,7 @@ export interface SwarmMissionStats {
   missionId: string;
   missionName: string;
   missionStartTime: number;
+  missionElapsedSeconds?: number;
   totalAreaSqKm: number;
   searchedPercentage: number;
   activeDronesCount: number;
@@ -251,4 +256,27 @@ export interface SwarmMissionStats {
     stable: number;
     rescued: number;
   };
+}
+
+export interface MissionLocation {
+  id: string;
+  name: string;
+  shortName: string;
+  subtitle: string;
+  center: { lat: number; lng: number };
+  defaultZoom: number;
+}
+
+export interface RescueRoute {
+  triageId: string;
+  victimCallsign: string;
+  status: 'CLEAR' | 'HAZARDOUS' | 'ASSISTED';
+  totalDistanceM: number;
+  estimatedTransitTimeMin: number;
+  ingressPointName: string;
+  ingressCoords: [number, number];
+  targetCoords: [number, number];
+  waypoints: [number, number][];
+  clearancePct: number;
+  recommendedTeam: string;
 }

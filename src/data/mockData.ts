@@ -1,4 +1,6 @@
 import { 
+  MissionLocation,
+  RescueRoute,
   DroneTelemetry, 
   HexapodTelemetry, 
   TriageEvent, 
@@ -9,10 +11,29 @@ import {
 } from '../types';
 
 // ============================================================================
-// BASE GEODETIC REFERENCE: Urban Disaster Complex (120m x 120m Footprint)
-// Downscaled for real-world drone & hexabot proportions on satellite view
+// MISSION TARGET LOCATIONS & GEODETIC REFERENCES
 // ============================================================================
-export const BASE_CENTER = { lat: 28.61390, lng: 77.20900 };
+export const MISSION_LOCATIONS: MissionLocation[] = [
+  {
+    id: 'VCET_MADURAI',
+    name: 'Velammal College of Engineering and Technology',
+    shortName: 'VCET Campus (Madurai)',
+    subtitle: 'Main Academic & Admin Complex, Viraganoor NH85',
+    center: { lat: 9.89391, lng: 78.17610 },
+    defaultZoom: 18,
+  },
+  {
+    id: 'URBAN_DISASTER_COMPLEX',
+    name: 'Sector 7-G Urban Disaster Complex',
+    shortName: 'Urban Disaster Complex (Delhi)',
+    subtitle: 'Collapsed Commercial Structure (New Delhi)',
+    center: { lat: 28.61390, lng: 77.20900 },
+    defaultZoom: 18,
+  }
+];
+
+export const BASE_CENTER = MISSION_LOCATIONS[0].center; // Default: Velammal College of Engineering & Technology
+
 
 // ---------------------------------------------------------------------------
 // 1. AERIAL SWARM: 10 Autonomous Ant Quadcopters (4 Perimeter Ring + 6 Interior Core)
@@ -21,12 +42,12 @@ export const BASE_CENTER = { lat: 28.61390, lng: 77.20900 };
 export const INITIAL_DRONES: DroneTelemetry[] = [
   // ================= INTERIOR CORE SEARCH GROUP (6 UAVs) =================
   {
-    id: 'ANT-01',
-    callsign: 'FORAGER-ALPHA',
+    id: 'UAV-01',
+    callsign: 'SPECTRE-1',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.61430, lng: 77.20870, altitude: 28 }, // North Wing Roof Void
+    position: { lat: BASE_CENTER.lat + 0.00040, lng: BASE_CENTER.lng - 0.00030, altitude: 28 }, // North Academic Block Roof Void
     heading: 45,
     groundSpeed: 5.8,
     verticalSpeed: 0.2,
@@ -54,7 +75,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.05, repulsionDelta: 0.0, highestTrailAngle: 50, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-03'],
+      neighborIds: ['UAV-03'],
       localObstacleDetected: false,
       obstacleDistanceM: 25.0,
       localThermalHotspot: false,
@@ -75,12 +96,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-02',
-    callsign: 'RELAY-BRAVO',
+    id: 'UAV-02',
+    callsign: 'FALCON-2',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.61350, lng: 77.20860, altitude: 22 }, // South-West Debris Cavity
+    position: { lat: BASE_CENTER.lat - 0.00040, lng: BASE_CENTER.lng - 0.00040, altitude: 22 }, // South-West Academic Debris Cavity
     heading: 135,
     groundSpeed: 6.2,
     verticalSpeed: 0.0,
@@ -108,7 +129,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.02, repulsionDelta: 0.0, highestTrailAngle: 130, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-06'],
+      neighborIds: ['UAV-06'],
       localObstacleDetected: false,
       obstacleDistanceM: 30.0,
       localThermalHotspot: false,
@@ -129,12 +150,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-03',
+    id: 'UAV-03',
     callsign: 'ATRIUM-CHARLIE',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.61390, lng: 77.20900, altitude: 35 }, // Central Atrium
+    position: { lat: BASE_CENTER.lat, lng: BASE_CENTER.lng, altitude: 35 }, // Central Quadrangle / Atrium
     heading: 90,
     groundSpeed: 4.5,
     verticalSpeed: 0.0,
@@ -162,7 +183,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.02, repulsionDelta: 0.0, highestTrailAngle: 90, localDecayRate: 0.015 },
       nearbyDronesCount: 2,
-      neighborIds: ['ANT-01', 'ANT-04'],
+      neighborIds: ['UAV-01', 'UAV-04'],
       localObstacleDetected: false,
       obstacleDistanceM: 50.0,
       localThermalHotspot: false,
@@ -183,12 +204,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-04',
+    id: 'UAV-04',
     callsign: 'CARRIER-DELTA',
     role: 'ACS_PAYLOAD_ANT',
     status: 'SEARCHING',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.61435, lng: 77.20940, altitude: 24 }, // North-East Rubble Void
+    position: { lat: BASE_CENTER.lat + 0.00045, lng: BASE_CENTER.lng + 0.00040, altitude: 24 }, // North-East Science Wing Void
     heading: 220,
     groundSpeed: 5.4,
     verticalSpeed: -0.1,
@@ -216,7 +237,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.0, repulsionDelta: 0.0, highestTrailAngle: 220, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-03'],
+      neighborIds: ['UAV-03'],
       localObstacleDetected: false,
       obstacleDistanceM: 18.2,
       localThermalHotspot: false,
@@ -237,12 +258,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-05',
+    id: 'UAV-05',
     callsign: 'RECRUIT-ECHO',
     role: 'ACS_RECRUITER',
     status: 'SEARCHING',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.61350, lng: 77.20945, altitude: 26 }, // South-East Column Shear
+    position: { lat: BASE_CENTER.lat - 0.00040, lng: BASE_CENTER.lng + 0.00045, altitude: 26 }, // South-East Workshop Column Shear
     heading: 315,
     groundSpeed: 6.0,
     verticalSpeed: 0.1,
@@ -270,7 +291,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.65, repulsionDelta: 0.0, highestTrailAngle: 320, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-02'],
+      neighborIds: ['UAV-02'],
       localObstacleDetected: false,
       obstacleDistanceM: 28.0,
       localThermalHotspot: true,
@@ -291,12 +312,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-06',
+    id: 'UAV-06',
     callsign: 'FORAGER-FOXTROT',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'INTERIOR_CORE',
-    position: { lat: 28.61395, lng: 77.20845, altitude: 20 }, // West Annex Ingress
+    position: { lat: BASE_CENTER.lat + 0.00005, lng: BASE_CENTER.lng - 0.00055, altitude: 20 }, // West Admin Wing Ingress
     heading: 10,
     groundSpeed: 5.0,
     verticalSpeed: 0.0,
@@ -324,7 +345,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 10, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-02'],
+      neighborIds: ['UAV-02'],
       localObstacleDetected: false,
       obstacleDistanceM: 20.0,
       localThermalHotspot: false,
@@ -347,12 +368,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
 
   // ================= PERIMETER RING SWARM GROUP (4 UAVs) =================
   {
-    id: 'ANT-07',
+    id: 'UAV-07',
     callsign: 'RING-NORTH',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.61470, lng: 77.20900, altitude: 32 }, // North Airspace Orbit
+    position: { lat: BASE_CENTER.lat + 0.00080, lng: BASE_CENTER.lng, altitude: 32 }, // North Airspace Perimeter Orbit
     heading: 90,
     groundSpeed: 7.2,
     verticalSpeed: 0.0,
@@ -380,7 +401,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 90, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-01'],
+      neighborIds: ['UAV-01'],
       localObstacleDetected: false,
       obstacleDistanceM: 40.0,
       localThermalHotspot: false,
@@ -401,12 +422,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-08',
+    id: 'UAV-08',
     callsign: 'RING-EAST',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.61390, lng: 77.20980, altitude: 30 }, // East Airspace Orbit
+    position: { lat: BASE_CENTER.lat, lng: BASE_CENTER.lng + 0.00080, altitude: 30 }, // East Airspace Perimeter Orbit
     heading: 180,
     groundSpeed: 7.0,
     verticalSpeed: 0.0,
@@ -434,7 +455,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 180, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-04'],
+      neighborIds: ['UAV-04'],
       localObstacleDetected: false,
       obstacleDistanceM: 45.0,
       localThermalHotspot: false,
@@ -455,12 +476,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-09',
+    id: 'UAV-09',
     callsign: 'RING-SOUTH',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.61310, lng: 77.20900, altitude: 30 }, // South Airspace Orbit
+    position: { lat: BASE_CENTER.lat - 0.00080, lng: BASE_CENTER.lng, altitude: 30 }, // South Airspace Perimeter Orbit
     heading: 270,
     groundSpeed: 7.2,
     verticalSpeed: 0.0,
@@ -488,7 +509,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 270, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-02'],
+      neighborIds: ['UAV-02'],
       localObstacleDetected: false,
       obstacleDistanceM: 40.0,
       localThermalHotspot: false,
@@ -509,12 +530,12 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     }
   },
   {
-    id: 'ANT-10',
+    id: 'UAV-10',
     callsign: 'RING-WEST',
     role: 'ACS_FORAGER',
     status: 'PATROL',
     zoneAssignment: 'PERIMETER_RING',
-    position: { lat: 28.61390, lng: 77.20815, altitude: 32 }, // West Airspace Orbit
+    position: { lat: BASE_CENTER.lat, lng: BASE_CENTER.lng - 0.00085, altitude: 32 }, // West Airspace Perimeter Orbit
     heading: 0,
     groundSpeed: 7.1,
     verticalSpeed: 0.0,
@@ -542,7 +563,7 @@ export const INITIAL_DRONES: DroneTelemetry[] = [
     perception: {
       sensedPheromoneGradient: { recruitmentDelta: 0.1, repulsionDelta: 0.0, highestTrailAngle: 0, localDecayRate: 0.015 },
       nearbyDronesCount: 1,
-      neighborIds: ['ANT-06'],
+      neighborIds: ['UAV-06'],
       localObstacleDetected: false,
       obstacleDistanceM: 40.0,
       localThermalHotspot: false,
@@ -573,8 +594,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'TITAN-CRAWLER-1',
     role: 'PERIMETER_ANCHOR',
     status: 'ANCHORED',
-    perimeterVertexName: 'North Gate Perimeter Anchor',
-    position: { lat: 28.61455, lng: 77.20900, altitude: 4, terrainSlopeDeg: 6 },
+    perimeterVertexName: 'Vertex 1 · North Campus Gate Ridge',
+    position: { lat: BASE_CENTER.lat + 0.00115, lng: BASE_CENTER.lng - 0.00030, altitude: 4, terrainSlopeDeg: 6 },
     heading: 180,
     crawlSpeed: 0.4,
     gaitMode: 'ANCHOR_LOCK',
@@ -628,8 +649,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'GEO-WATCHER-2',
     role: 'GEOFENCE_BEACON',
     status: 'ANCHORED',
-    perimeterVertexName: 'North-East Rubble Void Anchor',
-    position: { lat: 28.61445, lng: 77.20965, altitude: 6, terrainSlopeDeg: 14 },
+    perimeterVertexName: 'Vertex 2 · NE Sports Ground Ridge',
+    position: { lat: BASE_CENTER.lat + 0.00085, lng: BASE_CENTER.lng + 0.00110, altitude: 6, terrainSlopeDeg: 14 },
     heading: 235,
     crawlSpeed: 0.3,
     gaitMode: 'ANCHOR_LOCK',
@@ -683,8 +704,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'RUBBLE-CRAWLER-3',
     role: 'RUBBLE_INFILTRATOR',
     status: 'INFILTRATING_RUBBLE',
-    perimeterVertexName: 'South-East Wall Breach Anchor',
-    position: { lat: 28.61335, lng: 77.20965, altitude: 5, terrainSlopeDeg: 28 },
+    perimeterVertexName: 'Vertex 3 · East Engineering Block Boundary',
+    position: { lat: BASE_CENTER.lat - 0.00035, lng: BASE_CENTER.lng + 0.00125, altitude: 5, terrainSlopeDeg: 28 },
     heading: 300,
     crawlSpeed: 0.5,
     gaitMode: 'WAVE_STABLE',
@@ -738,8 +759,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'SEISMIC-LISTENER-4',
     role: 'SEISMIC_LISTENER',
     status: 'ANCHORED',
-    perimeterVertexName: 'South Loading Dock Anchor',
-    position: { lat: 28.61325, lng: 77.20900, altitude: 3, terrainSlopeDeg: 4 },
+    perimeterVertexName: 'Vertex 4 · South NH85 Highway Approach',
+    position: { lat: BASE_CENTER.lat - 0.00110, lng: BASE_CENTER.lng + 0.00045, altitude: 3, terrainSlopeDeg: 4 },
     heading: 0,
     crawlSpeed: 0.3,
     gaitMode: 'ANCHOR_LOCK',
@@ -793,8 +814,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'PERIMETER-GUARD-5',
     role: 'GEOFENCE_BEACON',
     status: 'ANCHORED',
-    perimeterVertexName: 'South-West Staging Anchor',
-    position: { lat: 28.61335, lng: 77.20835, altitude: 4, terrainSlopeDeg: 8 },
+    perimeterVertexName: 'Vertex 5 · SW Substation & Solar Array Vertex',
+    position: { lat: BASE_CENTER.lat - 0.00095, lng: BASE_CENTER.lng - 0.00090, altitude: 4, terrainSlopeDeg: 8 },
     heading: 45,
     crawlSpeed: 0.4,
     gaitMode: 'ANCHOR_LOCK',
@@ -848,8 +869,8 @@ export const INITIAL_HEXAPODS: HexapodTelemetry[] = [
     callsign: 'CAVERN-SCOUT-6',
     role: 'RUBBLE_INFILTRATOR',
     status: 'INFILTRATING_RUBBLE',
-    perimeterVertexName: 'North-West Column Collapse Anchor',
-    position: { lat: 28.61445, lng: 77.20835, altitude: 5, terrainSlopeDeg: 22 },
+    perimeterVertexName: 'Vertex 6 · NW Hostel Quadrangle Ingress',
+    position: { lat: BASE_CENTER.lat + 0.00045, lng: BASE_CENTER.lng - 0.00115, altitude: 5, terrainSlopeDeg: 22 },
     heading: 120,
     crawlSpeed: 0.6,
     gaitMode: 'WAVE_STABLE',
@@ -908,7 +929,7 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     id: 'TRI-884A',
     victimCallsign: 'SURVIVOR-ALPHA',
     timestamp: Date.now() - 1000 * 60 * 4,
-    location: { lat: 28.61392, lng: 77.20905, altitude: 2, zone: 'Central Atrium Floor Void' },
+    location: { lat: BASE_CENTER.lat + 0.00002, lng: BASE_CENTER.lng + 0.00005, altitude: 2, zone: 'Main Academic Quadrangle Void' },
     sector: 'Sector 7-G Central Atrium',
     severity: 'CRITICAL',
     entrapmentType: 'COLLAPSED_CONCRETE_VOID',
@@ -930,8 +951,8 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     },
     confidenceScore: 0.96,
     confidence: 0.96,
-    detectedByDroneId: 'ANT-03',
-    assignedDroneId: 'ANT-01',
+    detectedByDroneId: 'UAV-03',
+    assignedDroneId: 'UAV-01',
     rescueStatus: 'PENDING_EXTRACTION',
     hazardContext: 'EARTHQUAKE_PANCAKE_COLLAPSE',
     structuralIntegrityPct: 24,
@@ -946,7 +967,7 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     id: 'TRI-902B',
     victimCallsign: 'SURVIVOR-BRAVO',
     timestamp: Date.now() - 1000 * 60 * 12,
-    location: { lat: 28.61430, lng: 77.20875, altitude: 3, zone: 'North Wing Stairwell Cavity' },
+    location: { lat: BASE_CENTER.lat + 0.00040, lng: BASE_CENTER.lng - 0.00025, altitude: 3, zone: 'North Academic Block Stairwell Cavity' },
     sector: 'Sector 7-G North Wing',
     severity: 'URGENT',
     entrapmentType: 'BASEMENT_CAVE_IN',
@@ -968,8 +989,8 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     },
     confidenceScore: 0.91,
     confidence: 0.91,
-    detectedByDroneId: 'ANT-01',
-    assignedDroneId: 'ANT-04',
+    detectedByDroneId: 'UAV-01',
+    assignedDroneId: 'UAV-04',
     rescueStatus: 'MEDIC_DISPATCHED',
     hazardContext: 'STAIRWELL_SHEAR_FAILURE',
     structuralIntegrityPct: 42,
@@ -977,14 +998,14 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     tapFrequencyHz: 1.5,
     trappedPersonsCount: 1,
     recommendedExtraction: 'UAV_LIFELINE_AIRDROP',
-    recommendedAction: 'First aid drone ANT-04 deployed with automated oxygen mask and radio beacon.',
+    recommendedAction: 'First aid drone UAV-04 deployed with automated oxygen mask and radio beacon.',
     notes: 'Stairwell concrete debris wedge. Survivor responsive, mild hypothermia onset. Medical supply payload in transit.'
   },
   {
     id: 'TRI-731C',
     victimCallsign: 'SURVIVOR-CHARLIE',
     timestamp: Date.now() - 1000 * 60 * 20,
-    location: { lat: 28.61350, lng: 77.20920, altitude: 1, zone: 'South Wing Basement Column Void' },
+    location: { lat: BASE_CENTER.lat - 0.00040, lng: BASE_CENTER.lng + 0.00020, altitude: 1, zone: 'Workshop & Mechanical Lab Column Void' },
     sector: 'Sector 7-G South Basement',
     severity: 'CRITICAL',
     entrapmentType: 'COLLAPSED_CONCRETE_VOID',
@@ -1006,8 +1027,8 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     },
     confidenceScore: 0.94,
     confidence: 0.94,
-    detectedByDroneId: 'ANT-05',
-    assignedDroneId: 'ANT-05',
+    detectedByDroneId: 'UAV-05',
+    assignedDroneId: 'UAV-05',
     rescueStatus: 'PENDING_EXTRACTION',
     hazardContext: 'EARTHQUAKE_BASEMENT_CRUSH',
     structuralIntegrityPct: 18,
@@ -1022,7 +1043,7 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     id: 'TRI-610D',
     victimCallsign: 'SURVIVOR-DELTA',
     timestamp: Date.now() - 1000 * 60 * 35,
-    location: { lat: 28.61385, lng: 77.20855, altitude: 4, zone: 'West Annex Rubble Ingress' },
+    location: { lat: BASE_CENTER.lat - 0.00005, lng: BASE_CENTER.lng - 0.00045, altitude: 4, zone: 'Library & Admin Wing Ingress' },
     sector: 'Sector 7-G West Annex',
     severity: 'STABLE',
     entrapmentType: 'TIMBER_DEBRIS_CANOPY',
@@ -1044,8 +1065,8 @@ export const INITIAL_TRIAGE_EVENTS: TriageEvent[] = [
     },
     confidenceScore: 0.88,
     confidence: 0.88,
-    detectedByDroneId: 'ANT-06',
-    assignedDroneId: 'ANT-06',
+    detectedByDroneId: 'UAV-06',
+    assignedDroneId: 'UAV-06',
     rescueStatus: 'IN_ASSESSMENT',
     hazardContext: 'PERIMETER_WALL_DEBRIS',
     structuralIntegrityPct: 58,
@@ -1068,7 +1089,7 @@ export const INITIAL_ALERTS: AlertEntry[] = [
     hazardType: 'SEISMIC_AFTERSHOCK',
     sourceDroneId: 'HEXA-03',
     message: 'MAJOR EARTHQUAKE RECON: Sector 7-G structural integrity reduced to 24%. 2 victims identified in central void.',
-    location: { lat: 28.61392, lng: 77.20905 }
+    location: { lat: BASE_CENTER.lat + 0.00002, lng: BASE_CENTER.lng + 0.00005 }
   },
   {
     id: 'ALT-EQ-02',
@@ -1077,7 +1098,7 @@ export const INITIAL_ALERTS: AlertEntry[] = [
     hazardType: 'GAS_LEAK',
     sourceDroneId: 'HEXA-03',
     message: 'South Wing gas line leak detected: VOC plume expanding NW. Airflow isolation activated.',
-    location: { lat: 28.61350, lng: 77.20920 }
+    location: { lat: BASE_CENTER.lat - 0.00040, lng: BASE_CENTER.lng + 0.00020 }
   },
   {
     id: 'ALT-EQ-03',
@@ -1086,9 +1107,96 @@ export const INITIAL_ALERTS: AlertEntry[] = [
     hazardType: 'GEOFENCE_BREACH',
     sourceDroneId: 'HEXA-01',
     message: '6-Node Optical Laser Geofence locked around building footprint. Perimeter barrier active.',
-    location: { lat: 28.61390, lng: 77.20900 }
+    location: { lat: BASE_CENTER.lat, lng: BASE_CENTER.lng }
   }
 ];
+
+
+// ---------------------------------------------------------------------------
+// OPTIMAL INGRESS & GROUND RESCUE EXTRACTION CORRIDORS
+// ---------------------------------------------------------------------------
+export function generateRescueRoutes(center: { lat: number; lng: number } = BASE_CENTER): RescueRoute[] {
+  return [
+    {
+      triageId: 'TRI-884A',
+      victimCallsign: 'SURVIVOR-ALPHA',
+      status: 'CLEAR',
+      totalDistanceM: 135,
+      estimatedTransitTimeMin: 2.4,
+      ingressPointName: 'North Gate Staging Zone',
+      ingressCoords: [center.lat + 0.00140, center.lng - 0.00030],
+      targetCoords: [center.lat + 0.00002, center.lng + 0.00005],
+      waypoints: [
+        [center.lat + 0.00140, center.lng - 0.00030],
+        [center.lat + 0.00115, center.lng - 0.00030],
+        [center.lat + 0.00075, center.lng - 0.00020],
+        [center.lat + 0.00038, center.lng - 0.00005],
+        [center.lat + 0.00002, center.lng + 0.00005]
+      ],
+      clearancePct: 96,
+      recommendedTeam: 'Ground USAR Squad Alpha'
+    },
+    {
+      triageId: 'TRI-902B',
+      victimCallsign: 'SURVIVOR-BRAVO',
+      status: 'CLEAR',
+      totalDistanceM: 104,
+      estimatedTransitTimeMin: 1.8,
+      ingressPointName: 'NW Hostel Road Approach',
+      ingressCoords: [center.lat + 0.00045, center.lng - 0.00145],
+      targetCoords: [center.lat + 0.00040, center.lng - 0.00025],
+      waypoints: [
+        [center.lat + 0.00045, center.lng - 0.00145],
+        [center.lat + 0.00045, center.lng - 0.00115],
+        [center.lat + 0.00042, center.lng - 0.00075],
+        [center.lat + 0.00040, center.lng - 0.00045],
+        [center.lat + 0.00040, center.lng - 0.00025]
+      ],
+      clearancePct: 92,
+      recommendedTeam: 'Medical Extraction Team 1'
+    },
+    {
+      triageId: 'TRI-731C',
+      victimCallsign: 'SURVIVOR-CHARLIE',
+      status: 'HAZARDOUS',
+      totalDistanceM: 92,
+      estimatedTransitTimeMin: 2.1,
+      ingressPointName: 'South NH85 Highway Entrance',
+      ingressCoords: [center.lat - 0.00135, center.lng + 0.00045],
+      targetCoords: [center.lat - 0.00040, center.lng + 0.00020],
+      waypoints: [
+        [center.lat - 0.00135, center.lng + 0.00045],
+        [center.lat - 0.00110, center.lng + 0.00045],
+        [center.lat - 0.00085, center.lng + 0.00035],
+        [center.lat - 0.00060, center.lng + 0.00025],
+        [center.lat - 0.00040, center.lng + 0.00020]
+      ],
+      clearancePct: 88,
+      recommendedTeam: 'Heavy Shoring & Cutting Squad'
+    },
+    {
+      triageId: 'TRI-610D',
+      victimCallsign: 'SURVIVOR-DELTA',
+      status: 'CLEAR',
+      totalDistanceM: 118,
+      estimatedTransitTimeMin: 2.0,
+      ingressPointName: 'SW Substation Staging Pad',
+      ingressCoords: [center.lat - 0.00120, center.lng - 0.00110],
+      targetCoords: [center.lat - 0.00005, center.lng - 0.00045],
+      waypoints: [
+        [center.lat - 0.00120, center.lng - 0.00110],
+        [center.lat - 0.00095, center.lng - 0.00090],
+        [center.lat - 0.00055, center.lng - 0.00065],
+        [center.lat - 0.00025, center.lng - 0.00050],
+        [center.lat - 0.00005, center.lng - 0.00045]
+      ],
+      clearancePct: 98,
+      recommendedTeam: 'Rapid Medical Evac'
+    }
+  ];
+}
+
+export const INITIAL_RESCUE_ROUTES = generateRescueRoutes(BASE_CENTER);
 
 export const INITIAL_MISSION_STATS: SwarmMissionStats = {
   missionId: 'MSN-EQ-7G',
@@ -1116,16 +1224,14 @@ export const INITIAL_MISSION_STATS: SwarmMissionStats = {
 // ---------------------------------------------------------------------------
 // 5. BUILDING-SCALE 8x8 PHEROMONE GRID (120m x 120m Footprint)
 // ---------------------------------------------------------------------------
-export function generateInitialPheromoneGrid(): PheromoneCell[] {
+export function generateInitialPheromoneGrid(center: { lat: number; lng: number } = BASE_CENTER): PheromoneCell[] {
   const cells: PheromoneCell[] = [];
   const rows = 8;
   const cols = 8;
-  const startLat = 28.61320;
-  const startLng = 28.61320;
-  const southBound = 28.61320;
-  const westBound = 77.20820;
+  const southBound = center.lat - 0.00070;
+  const westBound = center.lng - 0.00080;
   const stepLat = 0.00020; // ~22 meters per cell
-  const stepLng = 0.00022; // ~22 meters per cell
+  const stepLng = 0.00020; // ~22 meters per cell
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -1140,6 +1246,8 @@ export function generateInitialPheromoneGrid(): PheromoneCell[] {
 
       cells.push({
         cellId,
+        gridX: c,
+        gridY: r,
         bounds: { north, south, east, west },
         coverageScore: isCenter ? 0.92 : Math.max(0.2, 0.8 - distFromCenter * 0.15),
         recruitmentLevel: (r === 4 && c === 4) ? 0.95 : (r === 2 && c === 5) ? 0.75 : 0.05,
@@ -1160,7 +1268,7 @@ export const INITIAL_REASONING_LOGS: ReasoningTraceLog[] = [
     severity: 'CRITICAL',
     category: 'ACOUSTIC_TAP_CORRELATION',
     title: 'Multi-Modal Void Entrapment & 2.8Hz Tap Resonance Confirmation',
-    droneId: 'ANT-03',
+    droneId: 'UAV-03',
     inferencePath: [
       'FLIR Radiometric sensor detected localized +22.6°C thermal differential under 40cm collapsed pre-stressed concrete slab.',
       'Hexapod HEXA-03 triaxial geophone registered persistent 2.8Hz rhythmic cadence (Morse tap pattern confidence 94.2%).',
@@ -1192,9 +1300,9 @@ export const INITIAL_REASONING_LOGS: ReasoningTraceLog[] = [
     severity: 'CRITICAL',
     category: 'SWARM_AIR_GROUND_COORDINATION',
     title: 'Air-Ground Cross-Cueing: Aerial Thermal Anomaly to Ground Hexapod Infiltration',
-    droneId: 'ANT-05',
+    droneId: 'UAV-05',
     inferencePath: [
-      'UAV ANT-05 aerial thermal camera isolated 37.4°C hot spot beneath dense South Basement rubble canopy.',
+      'UAV UAV-05 aerial thermal camera isolated 37.4°C hot spot beneath dense South Basement rubble canopy.',
       'Aero-photo photogrammetry determined surface rubble too dense for direct aerial supply payload drop.',
       'Emitted high-priority ACS pheromone recruitment signal (cell recruitment level set to 0.95).',
       'Ground hexapod HEXA-03 received coordinates, switched gait from TRIPOD_FAST to WAVE_STABLE for rubble crawling.'
@@ -1224,12 +1332,12 @@ export const INITIAL_REASONING_LOGS: ReasoningTraceLog[] = [
     severity: 'INFO',
     category: 'SLOPE_STABILITY_FAILURE',
     title: 'Stigmergic Pheromone Field Evaporation & Coverage Optimization',
-    droneId: 'ANT-02',
+    droneId: 'UAV-02',
     inferencePath: [
       'Grid cell coverage score in Sector 7-G North-East corner exceeded 0.88 search threshold.',
       'Pheromone evaporation engine decayed local recruitment pheromone (half-life 120s).',
       'Negative chemotaxis repulsion vector calculated away from over-surveyed roof quadrants.',
-      'Gradient ascent redirected ANT-02 and ANT-07 toward unsearched East Void sector.'
+      'Gradient ascent redirected UAV-02 and UAV-07 toward unsearched East Void sector.'
     ],
     autonomousDecision: 'Executing anti-clustering dispersion. Increased building coverage by +12.4% while maintaining zero drone collision risk.',
     operatorRequired: false

@@ -9,6 +9,7 @@ import { SwarmMetricsView } from './components/SwarmMetricsView';
 import { MissionPlaybackView } from './components/MissionPlaybackView';
 import { telemetryEngine } from './services/telemetryEngine';
 import { INITIAL_REASONING_LOGS } from './data/mockData';
+import { MissionLocation } from './types';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -21,6 +22,8 @@ export function App() {
   const [alerts, setAlerts] = useState(() => telemetryEngine.getAlerts());
   const [missionStats, setMissionStats] = useState(() => telemetryEngine.getMissionStats());
   const [missionMode, setMissionMode] = useState<'MOCK_SIMULATION' | 'LIVE_HARDWARE'>(() => telemetryEngine.getMode());
+  const [currentLocation, setCurrentLocation] = useState<MissionLocation>(() => telemetryEngine.getLocation());
+  const [rescueRoutes, setRescueRoutes] = useState(() => telemetryEngine.getRescueRoutes());
 
   // Default to null so map starts in full overview without auto-zooming into any unit
   const [selectedDroneId, setSelectedDroneId] = useState<string | null>(null);
@@ -35,8 +38,10 @@ export function App() {
       setTriageEvents([...telemetryEngine.getTriageEvents()]);
       setPheromoneGrid([...telemetryEngine.getPheromoneGrid()]);
       setAlerts([...telemetryEngine.getAlerts()]);
+      setRescueRoutes([...telemetryEngine.getRescueRoutes()]);
       setMissionStats({ ...telemetryEngine.getMissionStats() });
       setMissionMode(telemetryEngine.getMode());
+      setCurrentLocation(telemetryEngine.getLocation());
     });
 
     return () => {
@@ -60,16 +65,24 @@ export function App() {
     telemetryEngine.setMode(mode);
   };
 
-  // Focus drone on map when clicked in scrolling ticker or on map
+  // Focus drone on map when clicked in scrolling ticker or on map (toggle zoom)
   const handleSelectDrone = (droneId: string) => {
-    setSelectedDroneId(droneId);
-    setSelectedHexapodId(null);
+    if (selectedDroneId === droneId) {
+      setSelectedDroneId(null);
+    } else {
+      setSelectedDroneId(droneId);
+      setSelectedHexapodId(null);
+    }
   };
 
-  // Focus hexapod on map when clicked in scrolling ticker or on map
+  // Focus hexapod on map when clicked in scrolling ticker or on map (toggle zoom)
   const handleSelectHexapod = (hexapodId: string) => {
-    setSelectedHexapodId(hexapodId);
-    setSelectedDroneId(null);
+    if (selectedHexapodId === hexapodId) {
+      setSelectedHexapodId(null);
+    } else {
+      setSelectedHexapodId(hexapodId);
+      setSelectedDroneId(null);
+    }
   };
 
   const handleResetFocus = () => {
@@ -78,7 +91,15 @@ export function App() {
   };
 
   const handleSelectTriage = (triage: typeof triageEvents[0]) => {
-    setSelectedTriageId(triage.id);
+    if (selectedTriageId === triage.id) {
+      setSelectedTriageId(null);
+    } else {
+      setSelectedTriageId(triage.id);
+    }
+  };
+
+  const handleSelectLocation = (loc: MissionLocation) => {
+    telemetryEngine.setLocation(loc);
   };
 
   return (
@@ -120,6 +141,9 @@ export function App() {
               triageEvents={triageEvents}
               pheromoneGrid={pheromoneGrid}
               alerts={alerts}
+              rescueRoutes={rescueRoutes}
+              currentLocation={currentLocation}
+              onSelectLocation={handleSelectLocation}
               selectedDroneId={selectedDroneId}
               onSelectDrone={handleSelectDrone}
               selectedHexapodId={selectedHexapodId}
@@ -145,7 +169,7 @@ export function App() {
             <DroneDetailView
               drones={drones}
               hexapods={hexapods}
-              selectedDroneId={selectedDroneId || 'ANT-01'}
+              selectedDroneId={selectedDroneId || 'UAV-01'}
               onSelectDrone={setSelectedDroneId}
               selectedHexapodId={selectedHexapodId || 'HEXA-01'}
               onSelectHexapod={setSelectedHexapodId}
